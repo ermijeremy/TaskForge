@@ -164,7 +164,7 @@ Measure API acceptance latency separately from queue waiting time, execution dur
 | 3 | Multiple workers, leases, retries, stale-result protection, and recovery | [phase_3.md](phase_3.md) |
 | 4 | Benchmarks, failure demonstrations, and reproducible portfolio documentation | [phase_4.md](phase_4.md) |
 
-Complete each phase's exit checks before moving to the next. This revision defines the implementation plan; no application code is included.
+Complete each phase's exit checks before moving to the next. Implementation has started with Phase 1 issue #2 (workspace and static configuration); its learning exercise is pending. Other issues remain planned.
 
 ## 10. Portfolio Deliverables
 

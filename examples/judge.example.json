@@ -1,0 +1,14 @@
+{
+  "limits": {
+    "cpu_time_ms": 1000,
+    "wall_time_ms": 3000,
+    "memory_bytes": 134217728,
+    "output_bytes": 1048576,
+    "processes": 1
+  },
+  "evaluation_timeout_ms": 60000,
+  "runtime": {
+    "python_path": "/usr/bin/python3",
+    "isolate_path": "/usr/local/bin/isolate"
+  }
+}
