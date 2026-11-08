@@ -12,8 +12,9 @@ It does not execute submitted programs. Isolate installation/readiness belongs
 to issue #3; problems, execution, verdicts, and the judging CLI follow in their
 own issues.
 
-One method is intentionally left for you to implement. Start with the
-[issue #2 learning guide](docs/learning/issue-2.md).
+The issue #2 Rust exercise is complete. The
+[learning guide](docs/learning/issue-2.md) records its contract, reasoning,
+and regression tests.
 
 ## Workspace
 
@@ -47,8 +48,8 @@ cargo run -p judge-local --locked -- --help
 ```
 
 `Cargo.lock` records the dependency versions used by both workspace packages.
-The normal suite reports two ignored learning tests. They are explicitly
-unfinished work, not successful verification of the exercise.
+The normal suite includes the completed exercise's rounding and maximum-value
+regression tests; no learning tests are skipped.
 
 ## Configuration
 

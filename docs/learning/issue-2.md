@@ -1,5 +1,7 @@
 # Issue #2 — Workspace and configuration exercise
 
+**Status:** Completed. The exercise contract and reasoning are retained below.
+
 ## What is already implemented
 
 - Cargo manages the execution library and CLI together, sharing dependencies,
@@ -24,8 +26,11 @@ Read these files in order:
 
 ## Your implementation
 
-Implement **`ExecutionLimits::memory_kib_ceil`** in `limits.rs`. Its `todo!` is
-intentional and the normal configuration command never calls it.
+The completed **`ExecutionLimits::memory_kib_ceil`** method in `limits.rs` reads
+the inner integer using `.get()` and uses Rust's integer `.div_ceil(1024)`.
+The original quotient-and-remainder implementation also passed the same tests.
+The normal configuration command reports bytes directly and does not need this
+conversion yet.
 
 The method must:
 
@@ -46,19 +51,16 @@ Avoid floating-point conversions, which can lose precision for large integers.
 
 ## Test your work
 
-Run the opt-in exercise tests:
+Run the exercise regression tests:
 
 ```sh
-cargo test -p taskforge-execution --locked --test learning_exercise -- --ignored
+cargo test -p taskforge-execution --locked --test learning_exercise
 ```
 
-Before you implement the method, both tests fail at the deliberate `todo!`.
-Their source is [learning_exercise.rs](../../crates/taskforge-execution/tests/learning_exercise.rs).
-Do not change expected values to make the tests pass.
-
-Once both tests pass, remove their `#[ignore = "..."]` attributes so the exercise
-becomes part of the normal suite. Then run the formatting, Clippy, and workspace
-test commands in the README.
+Both tests run as part of the normal workspace suite. Their source is
+[learning_exercise.rs](../../crates/taskforge-execution/tests/learning_exercise.rs).
+They verify exact units, partial units, the default limit, and `u64::MAX`.
+Run the formatting, Clippy, and workspace test commands in the README as well.
 
 ## Explain it back
 
@@ -67,5 +69,5 @@ why your method cannot overflow, how `NonZeroU64` protects the input, and why
 `&self` is appropriate here. Also explain why valid file paths alone do not
 establish that Isolate can safely execute a submission.
 
-Keep issue #2 open until your exercise and review are complete. Do not begin
-issue #3 as part of this exercise.
+Review this work as part of issue #2. Later issues belong on separate branches
+and are not part of this exercise.

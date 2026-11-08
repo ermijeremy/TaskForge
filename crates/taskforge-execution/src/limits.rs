@@ -85,18 +85,9 @@ impl ExecutionLimits {
         self.processes
     }
 
-    /// Convert the memory limit to whole KiB, rounding upward.
-    ///
-    /// Learning exercise for issue #2: implement this method yourself.
-    /// One KiB is 1,024 bytes; the conversion must not overflow for `u64::MAX`.
-    /// See `docs/learning/issue-2.md` for the contract and test command.
-    ///
-    /// # Panics
-    ///
-    /// Currently panics because the exercise is intentionally unfinished.
-    /// The configuration command does not call this method.
+    /// Convert the memory limit to whole KiB, rounding upward without overflow.
     pub fn memory_kib_ceil(&self) -> u64 {
-        todo!("Your Rust exercise: convert memory_bytes to KiB, rounding up without overflow")
+        self.memory_bytes.get().div_ceil(1024)
     }
 }
 

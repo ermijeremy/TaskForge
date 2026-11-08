@@ -1,7 +1,7 @@
 # Phase 1 — Sandboxed Execution and Verdicts
 
-**Status:** In progress — issue #2 workspace/configuration scaffold is implemented;
-its learning exercise is pending. Sandbox execution and the remaining issues are planned.
+**Status:** In progress — issue #2 workspace/configuration scaffold and its learning
+exercise are implemented. Sandbox execution and the remaining issues are planned.
 
 **Depends on:** [Project scope](project.md).
 
