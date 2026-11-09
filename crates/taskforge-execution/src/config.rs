@@ -17,6 +17,27 @@ pub struct ExecutionSettings {
     #[serde(default = "default_evaluation_timeout_ms")]
     pub evaluation_timeout_ms: u64,
     pub runtime: RuntimeSettings,
+    #[serde(default)]
+    pub sandbox: SandboxSettings,
+}
+
+/// IDs must be dedicated to this installation on the entire host.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SandboxSettings {
+    pub box_id_start: u16,
+    pub box_id_end: u16,
+    pub lock_directory: PathBuf,
+}
+
+impl Default for SandboxSettings {
+    fn default() -> Self {
+        Self {
+            box_id_start: 0,
+            box_id_end: 9,
+            lock_directory: PathBuf::from("/run/lock/taskforge"),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -33,6 +54,7 @@ pub struct ExecutionConfig {
     evaluation_timeout: Duration,
     python_path: PathBuf,
     isolate_path: PathBuf,
+    sandbox: SandboxSettings,
 }
 
 impl ExecutionConfig {
@@ -68,6 +90,10 @@ impl ExecutionConfig {
     pub fn isolate_path(&self) -> &Path {
         &self.isolate_path
     }
+
+    pub fn sandbox(&self) -> &SandboxSettings {
+        &self.sandbox
+    }
 }
 
 impl ExecutionSettings {
@@ -77,9 +103,20 @@ impl ExecutionSettings {
     pub fn validate(self, base: &Path) -> Result<ExecutionConfig, ConfigError> {
         let limits = ExecutionLimits::try_from(self.limits)?;
         let timeout = positive_u64("evaluation_timeout_ms", self.evaluation_timeout_ms)?;
+        let mut sandbox = self.sandbox;
+        if sandbox.box_id_start > sandbox.box_id_end || sandbox.box_id_end > 999 {
+            return Err(ConfigError::SandboxRange);
+        }
+        if sandbox.lock_directory.as_os_str().is_empty() {
+            return Err(ConfigError::EmptyPath {
+                field: "sandbox.lock_directory",
+            });
+        }
+        sandbox.lock_directory = base.join(sandbox.lock_directory);
         Ok(ExecutionConfig {
             limits,
             evaluation_timeout: Duration::from_millis(timeout.get()),
+            sandbox,
             python_path: executable_path("runtime.python_path", base, &self.runtime.python_path)?,
             isolate_path: executable_path(
                 "runtime.isolate_path",
@@ -130,6 +167,8 @@ fn default_evaluation_timeout_ms() -> u64 {
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
+    #[error("sandbox IDs must form an inclusive range within 0..=999 (start <= end)")]
+    SandboxRange,
     #[error("cannot read configuration '{path}': {source}")]
     ReadConfig {
         path: PathBuf,

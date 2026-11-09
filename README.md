@@ -11,17 +11,21 @@ three fixed problem definitions, strict trusted-fixture loading, and controlled
 Python sample submissions. The definitions contain 30 ordered private cases;
 16 named source fixtures cover the planned outcomes and access probes.
 
+Issue #2 configuration and [issue #3](https://github.com/ermijeremy/TaskForge/issues/3)
+Linux/Isolate readiness are implemented. See the [Linux setup guide](docs/setup/linux-isolate.md),
+[host verification record](docs/setup/issue-3-host-verification.md), and
+[readiness walkthrough](docs/learning/issue-3.md) for the verified trusted smoke probe.
+
 See the [fixture guide](fixtures/README.md) for I/O contracts, the catalog,
 validation rules and commands, and the [Rust walkthrough](docs/learning/issue-4.md)
-for implementation details and an optional exercise. Issue #2 configuration is
-complete; Isolate readiness is developed separately in issue #3. Submission
-execution, verdict classification and the judging CLI follow in later issues.
+for implementation details and an optional exercise. Submission execution,
+verdict classification and the judging CLI follow in later issues.
 
 ## Workspace
 
 ```text
 crates/
-  taskforge-execution/   configuration, validated limits, and trusted problem loading
+  taskforge-execution/   configuration, limits, readiness, and trusted problem loading
   judge-local/          command-line entry point
 fixtures/
   problems/             three versioned JSON problem definitions
@@ -31,12 +35,15 @@ examples/
   judge.example.json    configuration template with explicit units
 docs/learning/
   issue-2.md            completed configuration exercise
+  issue-3.md            readiness walkthrough
   issue-4.md            problem/fixture walkthrough and optional exercise
+docs/setup/
+  linux-isolate.md      pinned installation and readiness commands
 ```
 
-The library uses Serde/serde_json for the configuration boundary and thiserror
-for errors. The CLI uses Clap. Tokio and sandbox process execution are not
-needed for static configuration checks and will be introduced when used.
+The library uses Serde/serde_json, thiserror and tempfile; the CLI uses Clap.
+Preflight uses synchronous standard-library processes. Tokio arrives with the
+submission supervision work.
 
 ## Build and check
 
@@ -55,7 +62,9 @@ cargo run -p judge-local --locked -- --help
 
 `Cargo.lock` records the dependency versions used by both workspace packages.
 The normal suite includes the completed exercise's rounding and maximum-value
-regression tests; no learning tests are skipped.
+regression tests and fake-tool readiness checks. One real Isolate test is
+explicitly ignored by default; see the setup guide to run it. A skipped test
+is not evidence of working isolation.
 
 ## Problem fixtures
 
@@ -100,10 +109,21 @@ Omitting `limits` or individual limit fields uses these defaults:
 
 The runtime section is required. Validation does not launch those files, verify
 their identity/version, check cgroup delegation or effective privileges, or
-prove sandbox readiness. A missing Isolate file is an explicit configuration
+prove sandbox readiness. Run the explicit check after provisioning:
+
+```sh
+cargo run -p judge-local --locked -- check-ready --config examples/judge.local.json
+```
+
+The `sandbox` section selects an inclusive host-reserved ID range (default 0..9,
+within 0..=999) and a shared lock directory (default `/run/lock/taskforge`).
+The setup guide explains the permissions, pinning, probe policy and cleanup.
+
+A missing Isolate file is an explicit configuration
 failure; no ordinary-process execution fallback exists.
 
-Host and problem limits are validated values at this stage. Enforcement is later work.
+Host and problem limits are validated values for future submissions. Readiness
+uses its fixed smoke-probe limits; submission enforcement is later work.
 An eventual per-test timeout is a user-code verdict; an eventual whole-evaluation
 deadline expiry is an infrastructure failure.
 

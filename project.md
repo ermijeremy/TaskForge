@@ -164,7 +164,7 @@ Measure API acceptance latency separately from queue waiting time, execution dur
 | 3 | Multiple workers, leases, retries, stale-result protection, and recovery | [phase_3.md](phase_3.md) |
 | 4 | Benchmarks, failure demonstrations, and reproducible portfolio documentation | [phase_4.md](phase_4.md) |
 
-Complete each phase's exit checks before moving to the next. Phase 1 issue #2 (workspace and static configuration), including its learning exercise, is implemented. Issue #4 adds the three local problems, strict fixture loading, 30 ordered cases and 16 controlled Python sources; see the [fixture guide](fixtures/README.md). Sandbox readiness is developed separately in issue #3. Submission execution and subsequent issues remain planned.
+Complete each phase's exit checks before moving to the next. Phase 1 issue #2 (workspace and static configuration), including its learning exercise, is implemented. Issue #3 sandbox readiness and pinned host setup are implemented and verified on real Linux; the commands, results and limitations are recorded in [the host log](docs/setup/issue-3-host-verification.md). Issue #4 adds the three local problems, strict fixture loading, 30 ordered cases and 16 controlled Python sources; see the [fixture guide](fixtures/README.md). Submission execution and subsequent issues remain planned.
 
 ## 10. Portfolio Deliverables
 

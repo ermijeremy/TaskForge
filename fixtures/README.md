@@ -117,7 +117,8 @@ as inconclusive; a nonexistent marker cannot establish isolation. The probe only
 reads at most 64 bytes and never prints file contents.
 
 No host marker is installed by loading fixtures or running this issue's tests.
-Real sandbox setup remains independent work in issue #3.
+Real sandbox setup and readiness are covered by issue #3; see the
+[Linux setup guide](../docs/setup/linux-isolate.md).
 
 ## Checks
 

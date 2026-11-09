@@ -163,6 +163,7 @@ dependencies = [
  "serde_json",
  "taskforge-execution",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]
