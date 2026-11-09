@@ -1,12 +1,15 @@
-//! Configuration and resource limits for TaskForge's future execution runner.
+//! Configuration, resource limits, and Linux/Isolate readiness for TaskForge.
 //!
-//! This crate does not execute submitted code yet. Sandbox readiness and actual
-//! execution belong to later Phase 1 issues.
+//! Readiness executes only a built-in trusted smoke probe, never a submission.
 
 // make the two module(files) available/expose
 pub mod config; // -> config.rs
 pub mod limits; // -> limits.rs
+pub mod readiness;
 
 // re-export commonly used types for easier access
-pub use config::{ConfigError, ExecutionConfig, ExecutionSettings, RuntimeSettings};
+pub use config::{
+    ConfigError, ExecutionConfig, ExecutionSettings, RuntimeSettings, SandboxSettings,
+};
 pub use limits::{ExecutionLimits, LimitSettings};
+pub use readiness::{ReadinessError, ReadinessReport, check_readiness};
