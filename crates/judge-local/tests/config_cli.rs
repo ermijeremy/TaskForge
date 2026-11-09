@@ -74,3 +74,38 @@ fn judging_is_not_exposed_before_execution_is_implemented() {
     let output = cli().args(["judge", "solution.py"]).output().unwrap();
     assert_eq!(output.status.code(), Some(2));
 }
+
+#[test]
+fn check_ready_reports_unavailable_sandbox_without_a_host_fallback() {
+    let directory = tempfile::tempdir().unwrap();
+    let isolate = directory.path().join("isolate");
+    fs::write(
+        &isolate,
+        "#!/bin/sh\necho 'Sandbox unavailable' >&2\nexit 2\n",
+    )
+    .unwrap();
+    fs::set_permissions(&isolate, fs::Permissions::from_mode(0o700)).unwrap();
+    let python = directory.path().join("python");
+    fs::write(&python, "#!/bin/sh\necho UNSAFE_FALLBACK\nexit 99\n").unwrap();
+    fs::set_permissions(&python, fs::Permissions::from_mode(0o700)).unwrap();
+    let config = directory.path().join("judge.json");
+    fs::write(
+        &config,
+        serde_json::to_vec(&json!({"runtime": {
+            "python_path": python, "isolate_path": isolate
+        }}))
+        .unwrap(),
+    )
+    .unwrap();
+    let output = cli()
+        .args(["check-ready", "--config"])
+        .arg(config)
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Sandbox readiness error:"));
+    assert!(stderr.contains("Sandbox unavailable"));
+    assert!(!stderr.contains("UNSAFE_FALLBACK"));
+}

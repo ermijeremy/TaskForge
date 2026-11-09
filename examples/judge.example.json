@@ -7,6 +7,11 @@
     "processes": 1
   },
   "evaluation_timeout_ms": 60000,
+  "sandbox": {
+    "box_id_start": 0,
+    "box_id_end": 9,
+    "lock_directory": "/run/lock/taskforge"
+  },
   "runtime": {
     "python_path": "/usr/bin/python3",
     "isolate_path": "/usr/local/bin/isolate"
