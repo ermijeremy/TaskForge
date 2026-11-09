@@ -1,7 +1,9 @@
 # Phase 1 — Sandboxed Execution and Verdicts
 
 **Status:** In progress — issue #2 workspace/configuration scaffold and its learning
-exercise are implemented. Sandbox execution and the remaining issues are planned.
+exercise are implemented. Issue #3 readiness, pinned host provisioning and a real
+Linux smoke run are verified in [the host log](docs/setup/issue-3-host-verification.md).
+Submission execution and the remaining issues are planned.
 
 **Depends on:** [Project scope](project.md).
 

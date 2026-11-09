@@ -6,31 +6,34 @@ for the current implementation roadmap.
 
 ## Current scope
 
-This branch addresses [issue #2](https://github.com/ermijeremy/TaskForge/issues/2):
-the Rust workspace, typed resource limits, and static configuration validation.
-It does not execute submitted programs. Isolate installation/readiness belongs
-to issue #3; problems, execution, verdicts, and the judging CLI follow in their
-own issues.
+This branch implements [issue #3](https://github.com/ermijeremy/TaskForge/issues/3):
+Linux/Isolate readiness, a trusted sandbox smoke probe, and native host setup.
+Issue #2 configuration and its Rust exercise are complete. Submitted programs
+are not executed yet; their staging, execution and supervision follow later.
 
-The issue #2 Rust exercise is complete. The
-[learning guide](docs/learning/issue-2.md) records its contract, reasoning,
-and regression tests.
+See the [Linux setup guide](docs/setup/linux-isolate.md),
+[host verification record](docs/setup/issue-3-host-verification.md), and
+[readiness walkthrough](docs/learning/issue-3.md). The host record distinguishes
+the successful real Linux smoke run from fake-tool protocol tests.
 
 ## Workspace
 
 ```text
 crates/
-  taskforge-execution/   reusable configuration and validated limit types
+  taskforge-execution/   configuration, limits, and Linux/Isolate readiness
   judge-local/          command-line entry point
 examples/
   judge.example.json    configuration template with explicit units
 docs/learning/
-  issue-2.md            code walkthrough and your Rust exercise
+  issue-2.md            completed configuration exercise
+  issue-3.md            readiness walkthrough
+docs/setup/
+  linux-isolate.md      pinned installation and readiness commands
 ```
 
-The library uses Serde/serde_json for the configuration boundary and thiserror
-for errors. The CLI uses Clap. Tokio and sandbox process execution are not
-needed for static configuration checks and will be introduced when used.
+The library uses Serde/serde_json, thiserror and tempfile; the CLI uses Clap.
+Preflight uses synchronous standard-library processes. Tokio arrives with the
+submission supervision work.
 
 ## Build and check
 
@@ -49,7 +52,9 @@ cargo run -p judge-local --locked -- --help
 
 `Cargo.lock` records the dependency versions used by both workspace packages.
 The normal suite includes the completed exercise's rounding and maximum-value
-regression tests; no learning tests are skipped.
+regression tests and fake-tool readiness checks. One real Isolate test is
+explicitly ignored by default; see the setup guide to run it. A skipped test
+is not evidence of working isolation.
 
 ## Configuration
 
@@ -81,7 +86,17 @@ Omitting `limits` or individual limit fields uses these defaults:
 
 The runtime section is required. Validation does not launch those files, verify
 their identity/version, check cgroup delegation or effective privileges, or
-prove sandbox readiness. A missing Isolate file is an explicit configuration
+prove sandbox readiness. Run the explicit check after provisioning:
+
+```sh
+cargo run -p judge-local --locked -- check-ready --config examples/judge.local.json
+```
+
+The `sandbox` section selects an inclusive host-reserved ID range (default 0..9,
+within 0..=999) and a shared lock directory (default `/run/lock/taskforge`).
+The setup guide explains the permissions, pinning, probe policy and cleanup.
+
+A missing Isolate file is an explicit configuration
 failure; no ordinary-process execution fallback exists.
 
 Limits are configuration values only at this stage. Enforcement is later work.
@@ -91,6 +106,6 @@ deadline expiry is an infrastructure failure.
 ## Development workflow
 
 Use one branch per implementation issue, starting from `main` once its
-prerequisites have been merged. This branch is `issue/2-rust-workspace-config`.
+prerequisites have been merged. This branch is `issue/3-isolate-readiness`.
 Leave the documented exercise for the project owner, review the changes and
 test results together, and do not start another issue until requested.
