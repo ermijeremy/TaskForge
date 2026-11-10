@@ -6,27 +6,37 @@ for the current implementation roadmap.
 
 ## Current scope
 
-This branch implements [issue #3](https://github.com/ermijeremy/TaskForge/issues/3):
-Linux/Isolate readiness, a trusted sandbox smoke probe, and native host setup.
-Issue #2 configuration and its Rust exercise are complete. Submitted programs
-are not executed yet; their staging, execution and supervision follow later.
+This branch implements [issue #4](https://github.com/ermijeremy/TaskForge/issues/4):
+three fixed problem definitions, strict trusted-fixture loading, and controlled
+Python sample submissions. The definitions contain 30 ordered private cases;
+16 named source fixtures cover the planned outcomes and access probes.
 
-See the [Linux setup guide](docs/setup/linux-isolate.md),
+Issue #2 configuration and [issue #3](https://github.com/ermijeremy/TaskForge/issues/3)
+Linux/Isolate readiness are implemented. See the [Linux setup guide](docs/setup/linux-isolate.md),
 [host verification record](docs/setup/issue-3-host-verification.md), and
-[readiness walkthrough](docs/learning/issue-3.md). The host record distinguishes
-the successful real Linux smoke run from fake-tool protocol tests.
+[readiness walkthrough](docs/learning/issue-3.md) for the verified trusted smoke probe.
+
+See the [fixture guide](fixtures/README.md) for I/O contracts, the catalog,
+validation rules and commands, and the [Rust walkthrough](docs/learning/issue-4.md)
+for implementation details and an optional exercise. Submission execution,
+verdict classification and the judging CLI follow in later issues.
 
 ## Workspace
 
 ```text
 crates/
-  taskforge-execution/   configuration, limits, and Linux/Isolate readiness
+  taskforge-execution/   configuration, limits, readiness, and trusted problem loading
   judge-local/          command-line entry point
+fixtures/
+  problems/             three versioned JSON problem definitions
+  submissions/          named Python sources and catalog
+  private/              host-only marker fixture
 examples/
   judge.example.json    configuration template with explicit units
 docs/learning/
   issue-2.md            completed configuration exercise
   issue-3.md            readiness walkthrough
+  issue-4.md            problem/fixture walkthrough and optional exercise
 docs/setup/
   linux-isolate.md      pinned installation and readiness commands
 ```
@@ -55,6 +65,19 @@ The normal suite includes the completed exercise's rounding and maximum-value
 regression tests and fake-tool readiness checks. One real Isolate test is
 explicitly ignored by default; see the setup guide to run it. A skipped test
 is not evidence of working isolation.
+
+## Problem fixtures
+
+```sh
+cargo test -p taskforge-execution --offline --locked --test problems
+cargo test -p taskforge-execution --offline --locked --test submission_catalog
+python3 tools/check-python-fixtures.py
+```
+
+The problem tests check every expected answer with independent Rust references.
+The Python check parses the sources and expects exactly one intentional syntax
+error; it executes none of them. Actual sandbox verdict checks belong to later
+issues. Keep private problem data outside sandbox mounts and public API output.
 
 ## Configuration
 
@@ -99,13 +122,14 @@ The setup guide explains the permissions, pinning, probe policy and cleanup.
 A missing Isolate file is an explicit configuration
 failure; no ordinary-process execution fallback exists.
 
-Limits are configuration values only at this stage. Enforcement is later work.
+Host and problem limits are validated values for future submissions. Readiness
+uses its fixed smoke-probe limits; submission enforcement is later work.
 An eventual per-test timeout is a user-code verdict; an eventual whole-evaluation
 deadline expiry is an infrastructure failure.
 
 ## Development workflow
 
 Use one branch per implementation issue, starting from `main` once its
-prerequisites have been merged. This branch is `issue/3-isolate-readiness`.
+prerequisites have been merged. This branch is `issue/4-problems-fixtures`.
 Leave the documented exercise for the project owner, review the changes and
 test results together, and do not start another issue until requested.

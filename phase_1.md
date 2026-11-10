@@ -3,6 +3,8 @@
 **Status:** In progress — issue #2 workspace/configuration scaffold and its learning
 exercise are implemented. Issue #3 readiness, pinned host provisioning and a real
 Linux smoke run are verified in [the host log](docs/setup/issue-3-host-verification.md).
+Issue #4 adds the three local problems, strict fixture loading, 30 ordered cases
+and 16 Python sources; see the [fixture guide](fixtures/README.md).
 Submission execution and the remaining issues are planned.
 
 **Depends on:** [Project scope](project.md).
@@ -123,7 +125,7 @@ These checks verify declared configuration and common failure modes; they do not
 
 ## 4. Exit Criteria
 
-- [ ] All three problems and required fixture categories exist.
+- [x] All three problems and required fixture categories exist (issue #4; data/inventory/reference checks).
 - [ ] CLI produces structured results without a database or API.
 - [ ] Real integration runs verify resource and access restrictions.
 - [ ] Output capture, diagnostics, and execution duration are bounded.
