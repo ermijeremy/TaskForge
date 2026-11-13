@@ -1,6 +1,7 @@
-//! Configuration, readiness, problems, and evaluation contracts for TaskForge.
+//! Configuration, readiness, problems, evaluation contracts, and sandbox lifecycle.
 //!
-//! Readiness executes only a built-in trusted smoke probe, never a submission.
+//! Readiness executes a trusted probe. Per-test execution uses validated Isolate
+//! limits and restricted runtime staging; bounded stream supervision is later work.
 
 // make the two module(files) available/expose
 pub mod config; // -> config.rs
@@ -8,6 +9,7 @@ pub mod evaluation;
 pub mod limits; // -> limits.rs
 pub mod problem;
 pub mod readiness;
+pub mod sandbox;
 
 // re-export commonly used types for easier access
 pub use config::{
