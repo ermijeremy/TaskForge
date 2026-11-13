@@ -7,7 +7,11 @@ Issue #4 adds the three local problems, strict fixture loading, 30 ordered cases
 and 16 Python sources; see the [fixture guide](fixtures/README.md).
 Issue #5 adds the runner contract and result/error schema; its core
 [result-validation exercise](docs/learning/issue-5.md) is complete.
-Submission execution and the remaining issues are planned.
+Issue #6 implements fresh sandbox lifecycles and restricted runtime staging;
+the core [limit-conversion exercise](docs/learning/issue-6.md) is complete and a
+[real host run](docs/setup/issue-6-host-verification.md) verifies selected fixtures,
+access restrictions and slot reuse. Supervision, verdict evaluation and the
+remaining issues are planned.
 
 **Depends on:** [Project scope](project.md).
 
