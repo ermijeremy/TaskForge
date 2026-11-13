@@ -6,28 +6,28 @@ for the current implementation roadmap.
 
 ## Current scope
 
-This branch implements [issue #5](https://github.com/ermijeremy/TaskForge/issues/5):
-the direct library runner contract, typed results/infrastructure errors, explicit
-resource units, and bounded diagnostics. The core result-validation exercise is
-complete and its regression tests run in the normal suite.
+This branch implements [issue #6](https://github.com/ermijeremy/TaskForge/issues/6):
+fresh per-test Isolate lifecycles, restricted Python runtime staging, trusted
+stdin/metadata and cleanup. The core limit-conversion exercise is complete.
+A real supported-host test verifies selected Python fixtures, access restrictions,
+slot reuse and cleanup; see the verification record for its scope and limitations.
 
-See the [completed exercise guide](docs/learning/issue-5.md) and
-[contract reference](docs/evaluation-contract.md). The validation lives in
-`EvaluationResult::try_from` in `crates/taskforge-execution/src/evaluation.rs`.
-It is the only public construction gate for a valid evaluation result.
+See the [completed core exercise](docs/learning/issue-6.md),
+[lifecycle guide](docs/sandbox-lifecycle.md), and
+[verification status](docs/setup/issue-6-host-verification.md).
 
-Issues #2–#4 provide validated configuration, real Linux/Isolate readiness, and
-three problems with 30 ordered cases and 16 named Python fixtures. See the
-[Linux setup guide](docs/setup/linux-isolate.md),
-[host verification record](docs/setup/issue-3-host-verification.md), and
-[fixture guide](fixtures/README.md). Concrete submission execution, verdict
-classification and the judging CLI follow in later issues.
+Issues #2–#5 provide validated configuration, Linux/Isolate readiness, three
+problems with 30 cases and 16 source fixtures, and validated result/error types.
+See the [Linux setup guide](docs/setup/linux-isolate.md),
+[fixture guide](fixtures/README.md), and [result contract](docs/evaluation-contract.md).
+Combined-output/deadline supervision, ordered verdict evaluation and the judging
+CLI arrive in later issues.
 
 ## Workspace
 
 ```text
 crates/
-  taskforge-execution/   configuration, readiness, problems, and runner contract
+  taskforge-execution/   configuration, readiness, fixtures, runner contract, sandbox lifecycle
   judge-local/          command-line entry point
 fixtures/
   problems/             three versioned JSON problem definitions
@@ -41,6 +41,7 @@ docs/learning/
   issue-3.md            readiness walkthrough
   issue-4.md            problem/fixture walkthrough and optional exercise
   issue-5.md            completed core result-validation exercise
+  issue-6.md            completed core Isolate limit-conversion exercise
 docs/setup/
   linux-isolate.md      pinned installation and readiness commands
 ```
@@ -66,9 +67,22 @@ cargo run -p judge-local --locked -- --help
 
 `Cargo.lock` records the dependency versions used by both workspace packages.
 The normal suite covers configuration, fixtures, fake-tool readiness and the
-result contract, including the completed issue #5 exercise. The real-host
-readiness test remains ignored by default; a skipped test is not evidence of
-working isolation.
+result contract, including the completed issue #5 exercise, and fake-tool sandbox
+lifecycle checks. The completed issue #6 exercise tests run normally. Three
+host-dependent checks remain ignored by default; run them explicitly on the
+supported host. Skips are not passes or evidence of working isolation.
+
+## Completed issue #6 exercise
+
+```sh
+cargo test -p taskforge-execution --offline --locked --test sandbox_limits_exercise
+cargo run -p taskforge-execution --offline --locked --example isolate_limits
+```
+
+The six regression tests validate units, range boundaries, memory rounding and
+process policy. The mapping demo prints the four default Isolate limit flags and
+never executes submitted source. The learning guide includes the explicit
+real-host integration command.
 
 ## Completed issue #5 exercise
 
@@ -144,14 +158,15 @@ The setup guide explains the permissions, pinning, probe policy and cleanup.
 A missing Isolate file is an explicit configuration
 failure; no ordinary-process execution fallback exists.
 
-Host and problem limits are validated values for future submissions. Readiness
-uses its fixed smoke-probe limits; submission enforcement is later work.
+Readiness uses fixed smoke-probe limits. The completed issue #6 conversion maps
+per-test CPU/wall/memory/process settings into Isolate options. Combined stream
+output enforcement and the overall infrastructure deadline remain issue #7 work.
 An eventual per-test timeout is a user-code verdict; an eventual whole-evaluation
 deadline expiry is an infrastructure failure.
 
 ## Development workflow
 
 Use one branch per implementation issue, starting from `main` once its
-prerequisites have been merged. This branch is `issue/5-runner-contract`.
+prerequisites have been merged. This branch is `issue/6-isolate-execution`.
 Leave the documented exercise for the project owner, review the changes and
 test results together, and do not start another issue until requested.
