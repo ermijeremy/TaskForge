@@ -1,0 +1,13 @@
+{
+  "verdict": "wrong_answer",
+  "reason_code": "output_mismatch",
+  "passed_tests": 1,
+  "total_tests": 8,
+  "first_failing_test": 1,
+  "resources": {
+    "cpu_time_ms": 10,
+    "wall_time_ms": 20,
+    "peak_memory_bytes": 8388608
+  },
+  "diagnostic": "Output tokens differ."
+}

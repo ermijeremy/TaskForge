@@ -1,0 +1,13 @@
+{
+  "verdict": "runtime_error",
+  "reason_code": "program_failed",
+  "passed_tests": 0,
+  "total_tests": 8,
+  "first_failing_test": 0,
+  "resources": {
+    "cpu_time_ms": null,
+    "wall_time_ms": null,
+    "peak_memory_bytes": null
+  },
+  "diagnostic": "Program exited unsuccessfully; measurements unavailable."
+}
