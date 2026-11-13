@@ -1,0 +1,13 @@
+{
+  "verdict": "accepted",
+  "reason_code": "all_tests_passed",
+  "passed_tests": 8,
+  "total_tests": 8,
+  "first_failing_test": null,
+  "resources": {
+    "cpu_time_ms": 120,
+    "wall_time_ms": 150,
+    "peak_memory_bytes": 8388608
+  },
+  "diagnostic": "All tests passed."
+}

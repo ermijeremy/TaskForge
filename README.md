@@ -6,26 +6,28 @@ for the current implementation roadmap.
 
 ## Current scope
 
-This branch implements [issue #4](https://github.com/ermijeremy/TaskForge/issues/4):
-three fixed problem definitions, strict trusted-fixture loading, and controlled
-Python sample submissions. The definitions contain 30 ordered private cases;
-16 named source fixtures cover the planned outcomes and access probes.
+This branch implements [issue #5](https://github.com/ermijeremy/TaskForge/issues/5):
+the direct library runner contract, typed results/infrastructure errors, explicit
+resource units, and bounded diagnostics. The core result-validation exercise is
+complete and its regression tests run in the normal suite.
 
-Issue #2 configuration and [issue #3](https://github.com/ermijeremy/TaskForge/issues/3)
-Linux/Isolate readiness are implemented. See the [Linux setup guide](docs/setup/linux-isolate.md),
+See the [completed exercise guide](docs/learning/issue-5.md) and
+[contract reference](docs/evaluation-contract.md). The validation lives in
+`EvaluationResult::try_from` in `crates/taskforge-execution/src/evaluation.rs`.
+It is the only public construction gate for a valid evaluation result.
+
+Issues #2–#4 provide validated configuration, real Linux/Isolate readiness, and
+three problems with 30 ordered cases and 16 named Python fixtures. See the
+[Linux setup guide](docs/setup/linux-isolate.md),
 [host verification record](docs/setup/issue-3-host-verification.md), and
-[readiness walkthrough](docs/learning/issue-3.md) for the verified trusted smoke probe.
-
-See the [fixture guide](fixtures/README.md) for I/O contracts, the catalog,
-validation rules and commands, and the [Rust walkthrough](docs/learning/issue-4.md)
-for implementation details and an optional exercise. Submission execution,
-verdict classification and the judging CLI follow in later issues.
+[fixture guide](fixtures/README.md). Concrete submission execution, verdict
+classification and the judging CLI follow in later issues.
 
 ## Workspace
 
 ```text
 crates/
-  taskforge-execution/   configuration, limits, readiness, and trusted problem loading
+  taskforge-execution/   configuration, readiness, problems, and runner contract
   judge-local/          command-line entry point
 fixtures/
   problems/             three versioned JSON problem definitions
@@ -33,10 +35,12 @@ fixtures/
   private/              host-only marker fixture
 examples/
   judge.example.json    configuration template with explicit units
+  results/              synthetic result/error JSON examples
 docs/learning/
   issue-2.md            completed configuration exercise
   issue-3.md            readiness walkthrough
   issue-4.md            problem/fixture walkthrough and optional exercise
+  issue-5.md            completed core result-validation exercise
 docs/setup/
   linux-isolate.md      pinned installation and readiness commands
 ```
@@ -61,10 +65,28 @@ cargo run -p judge-local --locked -- --help
 ```
 
 `Cargo.lock` records the dependency versions used by both workspace packages.
-The normal suite includes the completed exercise's rounding and maximum-value
-regression tests and fake-tool readiness checks. One real Isolate test is
-explicitly ignored by default; see the setup guide to run it. A skipped test
-is not evidence of working isolation.
+The normal suite covers configuration, fixtures, fake-tool readiness and the
+result contract, including the completed issue #5 exercise. The real-host
+readiness test remains ignored by default; a skipped test is not evidence of
+working isolation.
+
+## Completed issue #5 exercise
+
+```sh
+cargo test -p taskforge-execution --offline --locked --test evaluation_exercise
+```
+
+The nine tests cover valid results, invalid counts/reason pairs, verdict-specific
+progress rules, preserved fields and maximum integer values. The schema example
+prints four synthetic result/error payloads:
+
+```sh
+cargo run -p taskforge-execution --offline --locked --example result_contract
+```
+
+The static JSON examples under `examples/results/` and ordinary serialization
+tests document and validate the schema. They do not represent actual submission
+execution.
 
 ## Problem fixtures
 
@@ -130,6 +152,6 @@ deadline expiry is an infrastructure failure.
 ## Development workflow
 
 Use one branch per implementation issue, starting from `main` once its
-prerequisites have been merged. This branch is `issue/4-problems-fixtures`.
+prerequisites have been merged. This branch is `issue/5-runner-contract`.
 Leave the documented exercise for the project owner, review the changes and
 test results together, and do not start another issue until requested.
