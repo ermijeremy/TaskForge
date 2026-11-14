@@ -513,7 +513,7 @@ impl RunningSandbox {
         combine(result, cleanup)
     }
 
-    /// Stop the wrapper, then invoke Isolate cleanup to kill the whole cgroup.
+    /// Ask Isolate to terminate its processes, then remove the whole sandbox.
     /// Killing only the wrapper never counts as successful cleanup.
     pub fn cancel(mut self) -> Result<(), InfrastructureError> {
         let mut child = self.child.take().expect("active child");
@@ -716,15 +716,34 @@ fn stop_child(child: &mut Child, control: &ExecutionControl) -> Result<(), Infra
     {
         return Ok(());
     }
+    // SIGKILL bypasses the keeper's namespace/process teardown and can race
+    // cgroup removal. Let Isolate handle SIGTERM before escalating.
+    request_shutdown(child).map_err(|_| {
+        error(
+            InfrastructureReason::ProcessIoFailed,
+            "cannot request Isolate shutdown",
+        )
+    })?;
+    let deadline = control
+        .final_deadline()
+        .unwrap_or_else(|| Instant::now() + CONTROL_TIMEOUT);
+    let graceful_deadline = deadline.min(Instant::now() + Duration::from_millis(250));
+    while Instant::now() < graceful_deadline {
+        if child
+            .try_wait()
+            .map_err(|_| error(InfrastructureReason::ProcessIoFailed, "cannot reap Isolate"))?
+            .is_some()
+        {
+            return Ok(());
+        }
+        thread::sleep(Duration::from_millis(2));
+    }
     child.kill().map_err(|_| {
         error(
             InfrastructureReason::ProcessIoFailed,
             "cannot stop Isolate wrapper",
         )
     })?;
-    let deadline = control
-        .final_deadline()
-        .unwrap_or_else(|| Instant::now() + CONTROL_TIMEOUT);
     loop {
         match child.try_wait() {
             Ok(Some(_)) => return Ok(()),
@@ -737,6 +756,20 @@ fn stop_child(child: &mut Child, control: &ExecutionControl) -> Result<(), Infra
             }
         }
     }
+}
+
+#[cfg(unix)]
+fn request_shutdown(child: &mut Child) -> std::io::Result<()> {
+    rustix::process::kill_process(
+        rustix::process::Pid::from_child(child),
+        rustix::process::Signal::TERM,
+    )
+    .map_err(std::io::Error::from)
+}
+
+#[cfg(not(unix))]
+fn request_shutdown(child: &mut Child) -> std::io::Result<()> {
+    child.kill()
 }
 
 #[cfg(test)]

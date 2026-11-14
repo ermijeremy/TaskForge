@@ -43,6 +43,11 @@ case "$3" in
     if test -f fail-cleanup; then exit 2; fi
     rm -rf "boxes/$id";;
 --run)
+    if test -f term-run; then
+        trap 'echo stopped > term-seen; exit 0' TERM
+        echo ready > run-ready
+        while :; do :; done
+    fi
     if test -f sleep-run; then exec sleep 60; fi
     if test -f fail-run; then exit 2; fi
     for arg in "$@"; do case "$arg" in --meta=*) meta=${arg#--meta=};; esac; done
@@ -250,6 +255,26 @@ fn explicit_cancel_and_drop_cleanup_the_protocol_box() {
     let sandbox = f.prepare().unwrap();
     drop(sandbox);
     assert!(!f.directory.path().join("boxes/3").exists());
+}
+
+#[test]
+fn cancellation_allows_the_manager_to_terminate_its_sandbox_before_cleanup() {
+    let f = Fixture::new();
+    f.flag("term-run");
+    let running = f.prepare().unwrap().spawn(b"").unwrap();
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while !f.directory.path().join("run-ready").exists() {
+        assert!(Instant::now() < deadline);
+        thread::sleep(Duration::from_millis(2));
+    }
+    running.cancel().unwrap();
+    assert_eq!(
+        fs::read_to_string(f.directory.path().join("term-seen")).unwrap(),
+        "stopped\n"
+    );
+    assert!(!f.directory.path().join("boxes/3").exists());
+    fs::remove_file(f.directory.path().join("term-run")).unwrap();
+    f.prepare().unwrap().cleanup().unwrap();
 }
 
 #[test]
