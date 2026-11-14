@@ -6,28 +6,27 @@ for the current implementation roadmap.
 
 ## Current scope
 
-This branch implements [issue #6](https://github.com/ermijeremy/TaskForge/issues/6):
-fresh per-test Isolate lifecycles, restricted Python runtime staging, trusted
-stdin/metadata and cleanup. The core limit-conversion exercise is complete.
-A real supported-host test verifies selected Python fixtures, access restrictions,
-slot reuse and cleanup; see the verification record for its scope and limitations.
+This branch starts [issue #7](https://github.com/ermijeremy/TaskForge/issues/7):
+Tokio-facing execution supervision, fair stdout/stderr draining, an evaluation-wide
+deadline, cancellation and cleanup ownership. The core combined-output accounting exercise is complete and its tests run
+normally. Native verification of this new path is pending.
 
-See the [completed core exercise](docs/learning/issue-6.md),
-[lifecycle guide](docs/sandbox-lifecycle.md), and
-[verification status](docs/setup/issue-6-host-verification.md).
+Start with the [issue #7 exercise](docs/learning/issue-7.md),
+[supervision guide](docs/supervision.md), and
+[verification status](docs/setup/issue-7-verification.md).
 
-Issues #2–#5 provide validated configuration, Linux/Isolate readiness, three
-problems with 30 cases and 16 source fixtures, and validated result/error types.
-See the [Linux setup guide](docs/setup/linux-isolate.md),
-[fixture guide](fixtures/README.md), and [result contract](docs/evaluation-contract.md).
-Combined-output/deadline supervision, ordered verdict evaluation and the judging
-CLI arrive in later issues.
+Issues #2–#6 provide validated configuration, Linux/Isolate readiness, three
+problems with 30 cases and 16 source fixtures, validated result/error types, and
+fresh restricted sandbox lifecycles. The issue #6 core exercise is complete;
+its [recorded native run](docs/setup/issue-6-host-verification.md) covers selected
+fixtures, access restrictions and slot reuse. Ordered verdict evaluation and the
+judging CLI arrive in later issues.
 
 ## Workspace
 
 ```text
 crates/
-  taskforge-execution/   configuration, readiness, fixtures, runner contract, sandbox lifecycle
+  taskforge-execution/   configuration, fixtures, contracts, sandbox lifecycle, supervision
   judge-local/          command-line entry point
 fixtures/
   problems/             three versioned JSON problem definitions
@@ -42,13 +41,13 @@ docs/learning/
   issue-4.md            problem/fixture walkthrough and optional exercise
   issue-5.md            completed core result-validation exercise
   issue-6.md            completed core Isolate limit-conversion exercise
+  issue-7.md            completed core combined-output accounting exercise
 docs/setup/
   linux-isolate.md      pinned installation and readiness commands
 ```
 
-The library uses Serde/serde_json, thiserror and tempfile; the CLI uses Clap.
-Preflight uses synchronous standard-library processes. Tokio arrives with the
-submission supervision work.
+The library uses Serde/serde_json, thiserror, tempfile, Tokio and rustix; the CLI
+uses Clap. Supervision moves blocking host work off the async executor.
 
 ## Build and check
 
@@ -68,9 +67,23 @@ cargo run -p judge-local --locked -- --help
 `Cargo.lock` records the dependency versions used by both workspace packages.
 The normal suite covers configuration, fixtures, fake-tool readiness and the
 result contract, including the completed issue #5 exercise, and fake-tool sandbox
-lifecycle checks. The completed issue #6 exercise tests run normally. Three
-host-dependent checks remain ignored by default; run them explicitly on the
-supported host. Skips are not passes or evidence of working isolation.
+lifecycle checks. Completed issue #6/#7 accounting and supervised protocol tests
+run normally. Four host-dependent checks remain ignored by default; run them
+explicitly on the supported host. Skips are not evidence of working isolation.
+
+## Issue #7 exercise
+
+The completed `OutputBudget::record` is in
+`crates/taskforge-execution/src/supervision/budget.rs`. Run its seven regression tests:
+
+```sh
+cargo test -p taskforge-execution --offline --locked \
+  --test output_budget_exercise
+```
+
+The [learning guide](docs/learning/issue-7.md) specifies overflow, equality, raw
+byte handling, bounded retention and the additional protocol/native commands.
+The overflow and supervised protocol tests also run normally. Native checks stay opt-in.
 
 ## Completed issue #6 exercise
 
@@ -159,14 +172,14 @@ A missing Isolate file is an explicit configuration
 failure; no ordinary-process execution fallback exists.
 
 Readiness uses fixed smoke-probe limits. The completed issue #6 conversion maps
-per-test CPU/wall/memory/process settings into Isolate options. Combined stream
-output enforcement and the overall infrastructure deadline remain issue #7 work.
-An eventual per-test timeout is a user-code verdict; an eventual whole-evaluation
-deadline expiry is an infrastructure failure.
+per-test CPU/wall/memory/process settings into Isolate options. Issue #7 supplies the supervisor around
+those controls with completed combined-output accounting. A per-test
+timeout supplies user-code timeout evidence; whole-evaluation deadline expiry is
+an infrastructure failure. Supervised output budgets above 1 MiB are rejected.
 
 ## Development workflow
 
 Use one branch per implementation issue, starting from `main` once its
-prerequisites have been merged. This branch is `issue/6-isolate-execution`.
+prerequisites have been merged. This branch is `issue/7-bounded-supervision`.
 Leave the documented exercise for the project owner, review the changes and
 test results together, and do not start another issue until requested.
