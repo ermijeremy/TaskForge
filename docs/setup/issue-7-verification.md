@@ -1,7 +1,7 @@
 # Issue #7 verification status
 
 **Status: output accounting and supervised protocol tests verified; native
-supervision verification pending.**
+supervision verification blocked at runtime readiness.**
 
 `OutputBudget::record` now counts both streams against one configured budget,
 retains only the permitted prefix within the 1 MiB ceiling, saturates the observed
@@ -20,6 +20,12 @@ cleanup after setup deadline expiry, late cleanup recovery/quarantine and output
 capacity rejection. A worker test checks that the response deadline signals
 cancellation while the worker retains ownership. Trusted protocol tests are not
 native isolation evidence.
+
+The native supervision test was explicitly attempted. Preflight rejected the
+host Python version because it differs from the pinned runtime. The test stopped
+before submission execution, so this attempt supplies no evidence for native
+output, deadline or cancellation behavior. Restore the documented runtime pin
+and rerun the test before marking native verification complete.
 
 The four host-dependent checks remain ignored by default. The new native
 supervision test covers output floods, CPU/wall timeouts, evaluation deadline
