@@ -4,7 +4,7 @@ import os
 import platform
 import socket
 
-assert platform.python_version() == "3.14.8"
+assert platform.python_version() == "3.14.10"
 assert os.getuid() != 0
 for path in ("/etc/passwd", "/proc/self/environ", "/run/docker.sock"):
     try:

@@ -24,7 +24,7 @@ impl Runner for UnavailableRunner {
 #[test]
 fn a_worker_can_call_the_library_and_match_typed_infrastructure_failure() {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../fixtures/problems/sum-two-integers-v1.json");
+        .join("../../fixtures/problems/sum-two-integers-v2.json");
     let problem = Problem::load(path).unwrap();
     let runner: &dyn Runner = &UnavailableRunner;
     match runner.evaluate("print(0)", &problem, problem.limits()) {

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "runtime": "python-3.14.8",
+  "runtime": "python-3.14.10",
   "host_marker": {
     "fixture": "../private/host-only-marker.txt",
     "host_path": "/var/local/lib/taskforge/host-only-marker.txt"
@@ -9,112 +9,112 @@
     {
       "id": "sum-two-accepted",
       "path": "sum_two_accepted.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "accepted",
       "expected_behavior": "Accepted on every stored case."
     },
     {
       "id": "sum-list-accepted",
       "path": "sum_list_accepted.py",
-      "problem_id": "sum-list-v1",
+      "problem_id": "sum-list-v2",
       "category": "accepted",
       "expected_behavior": "Accepted on every stored case, including the empty list."
     },
     {
       "id": "balanced-brackets-accepted",
       "path": "balanced_brackets_accepted.py",
-      "problem_id": "balanced-brackets-v1",
+      "problem_id": "balanced-brackets-v2",
       "category": "accepted",
       "expected_behavior": "Accepted on every stored case, including empty input."
     },
     {
       "id": "sum-two-wrong",
       "path": "sum_two_wrong.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "wrong_answer",
       "expected_behavior": "Passes position 0; first differs at position 1. Later tests must not run during evaluation."
     },
     {
       "id": "sum-two-whitespace",
       "path": "sum_two_whitespace.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "whitespace",
       "expected_behavior": "Accepted under ASCII-whitespace token comparison despite different output bytes."
     },
     {
       "id": "syntax-error",
       "path": "syntax_error.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "syntax_error",
       "expected_behavior": "Runtime Error; Python has no separate compilation verdict."
     },
     {
       "id": "exception",
       "path": "exception.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "exception",
       "expected_behavior": "Runtime Error from an intentional exception."
     },
     {
       "id": "infinite-loop",
       "path": "infinite_loop.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "cpu_limit",
       "expected_behavior": "Time Limit Exceeded when the configured CPU limit is enforced."
     },
     {
       "id": "sleeping",
       "path": "sleeping.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "wall_limit",
       "expected_behavior": "Time Limit Exceeded through the wall limit before the 60-second sleep ends."
     },
     {
       "id": "memory-pressure",
       "path": "memory_pressure.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "memory_limit",
       "expected_behavior": "Memory Limit Exceeded only with confirmed sandbox memory-kill evidence; an ordinary MemoryError is Runtime Error."
     },
     {
       "id": "stdout-flood",
       "path": "stdout_flood.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "stdout_flood",
       "expected_behavior": "Output Limit Exceeded when the combined 1 MiB budget is crossed; at most 4 MiB requested."
     },
     {
       "id": "stderr-flood",
       "path": "stderr_flood.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "stderr_flood",
       "expected_behavior": "Output Limit Exceeded even if stdout is empty; at most 4 MiB requested."
     },
     {
       "id": "mixed-output-flood",
       "path": "mixed_output_flood.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "mixed_flood",
       "expected_behavior": "Output Limit Exceeded at 1 MiB combined; each stream requests only 768 KiB."
     },
     {
       "id": "subprocess-probe",
       "path": "subprocess_probe.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "subprocess_probe",
       "expected_behavior": "SUBPROCESS_DENIED; an allowed child is reaped and causes a failing probe."
     },
     {
       "id": "network-probe",
       "path": "network_probe.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "network_probe",
       "expected_behavior": "NETWORK_DENIED only on explicit routing/permission denial; timeout/refusal is inconclusive."
     },
     {
       "id": "host-file-probe",
       "path": "host_file_probe.py",
-      "problem_id": "sum-two-integers-v1",
+      "problem_id": "sum-two-integers-v2",
       "category": "host_file_probe",
       "expected_behavior": "HOST_FILE_DENIED after the harness verifies the marker exists and is readable on the host."
     }

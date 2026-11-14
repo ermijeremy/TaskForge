@@ -4,17 +4,26 @@
 use std::fs::{self, File};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use std::sync::{Mutex, MutexGuard};
 
 use serde_json::{Value, json};
 use taskforge_execution::{ConfigError, ExecutionConfig, ReadinessError, check_readiness};
 use tempfile::TempDir;
 
+// Avoid concurrent fork/exec inheriting a fixture script's open writer, which
+// can transiently make execution fail with ETXTBSY on Linux.
+static PROTOCOL_LOCK: Mutex<()> = Mutex::new(());
+
 struct Fixture {
+    _guard: MutexGuard<'static, ()>,
     directory: TempDir,
 }
 
 impl Fixture {
     fn new() -> Self {
+        let guard = PROTOCOL_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let directory = tempfile::tempdir().unwrap();
         let base = directory.path();
         for dir in ["locks", "cgroup", "box"] {
@@ -22,7 +31,7 @@ impl Fixture {
         }
         fs::set_permissions(base.join("locks"), fs::Permissions::from_mode(0o700)).unwrap();
         fs::write(base.join("cgroup/cgroup.controllers"), "cpu memory pids").unwrap();
-        executable(&base.join("python"), "#!/bin/sh\necho 'Python 3.14.8'\n");
+        executable(&base.join("python"), "#!/bin/sh\necho 'Python 3.14.10'\n");
         executable(
             &base.join("isolate"),
             r#"#!/bin/sh
@@ -48,11 +57,14 @@ case "$3" in
       printf 'exitcode:0\ntime:0.001\ntime-wall:0.003\ncg-mem:8192\n' > "$meta"
     fi
     if test -f metadata-override; then cat metadata-override > "$meta"; fi
-    echo 'TASKFORGE_SMOKE_OK 3.14.8';;
+    echo 'TASKFORGE_SMOKE_OK 3.14.10';;
 esac
 "#,
         );
-        Self { directory }
+        Self {
+            _guard: guard,
+            directory,
+        }
     }
 
     fn settings(&self) -> Value {
@@ -181,12 +193,16 @@ fn deadline_failure_still_runs_cleanup() {
 
 #[test]
 fn wrong_version_missing_delegation_and_bad_permissions_fail_before_init() {
-    for cause in ["version", "delegation", "permissions"] {
+    for cause in ["version", "python-version", "delegation", "permissions"] {
         let f = Fixture::new();
         match cause {
             "version" => executable(
                 &f.directory.path().join("isolate"),
                 "#!/bin/sh\necho 'The process isolator 1.0'\n",
+            ),
+            "python-version" => executable(
+                &f.directory.path().join("python"),
+                "#!/bin/sh\necho 'Python 3.14.8'\n",
             ),
             "delegation" => {
                 fs::write(f.directory.path().join("cgroup/cgroup.controllers"), "cpu").unwrap()
@@ -264,6 +280,7 @@ fn diagnostic_and_metadata_capture_reject_oversized_content() {
         check_readiness(&f.config()),
         Err(ReadinessError::ExcessOutput(_))
     ));
+    drop(f);
     let f = Fixture::new();
     fs::write(
         f.directory.path().join("metadata-override"),

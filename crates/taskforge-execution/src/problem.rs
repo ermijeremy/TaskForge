@@ -10,7 +10,7 @@ use thiserror::Error;
 
 use crate::{ConfigError, ExecutionLimits, LimitSettings};
 
-pub const PROBLEM_IDS: [&str; 3] = ["sum-two-integers-v1", "sum-list-v1", "balanced-brackets-v1"];
+pub const PROBLEM_IDS: [&str; 3] = ["sum-two-integers-v2", "sum-list-v2", "balanced-brackets-v2"];
 pub const MAX_DEFINITION_BYTES: usize = 256 * 1024;
 pub const MAX_CASE_BYTES: usize = 8 * 1024;
 
@@ -19,6 +19,8 @@ pub const MAX_CASE_BYTES: usize = 8 * 1024;
 pub enum ProblemRuntime {
     #[serde(rename = "python-3.14.8")]
     Python3148,
+    #[serde(rename = "python-3.14.10")]
+    Python31410,
 }
 
 /// Unlike host configuration, immutable problem fixtures require every limit.

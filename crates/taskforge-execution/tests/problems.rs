@@ -10,7 +10,7 @@ fn directory() -> PathBuf {
 }
 
 fn document() -> Value {
-    serde_json::from_slice(&fs::read(directory().join("sum-two-integers-v1.json")).unwrap())
+    serde_json::from_slice(&fs::read(directory().join("sum-two-integers-v2.json")).unwrap())
         .unwrap()
 }
 
@@ -25,7 +25,7 @@ fn fixed_catalog_has_stable_ids_positions_explicit_limits_and_runtime() {
     let mut total = 0;
     for (problem, id) in problems.iter().zip(PROBLEM_IDS) {
         assert_eq!(problem.public().id, id);
-        assert_eq!(problem.public().runtime, ProblemRuntime::Python3148);
+        assert_eq!(problem.public().runtime, ProblemRuntime::Python31410);
         assert_eq!(problem.limits().memory_bytes().get(), 128 * 1024 * 1024);
         assert_eq!(problem.limits().output_bytes().get(), 1024 * 1024);
         assert_eq!(problem.limits().processes().get(), 1);
@@ -61,7 +61,7 @@ fn every_stored_answer_and_public_example_matches_an_independent_reference() {
 
 fn reference(id: &str, input: &str) -> String {
     match id {
-        "sum-two-integers-v1" => {
+        "sum-two-integers-v2" => {
             let values: Vec<i128> = input
                 .split_ascii_whitespace()
                 .map(|v| v.parse().unwrap())
@@ -70,7 +70,7 @@ fn reference(id: &str, input: &str) -> String {
             assert!(values.iter().all(|v| v.abs() <= 1_000_000_000_000_000_000));
             format!("{}\n", values[0] + values[1])
         }
-        "sum-list-v1" => {
+        "sum-list-v2" => {
             let mut tokens = input.split_ascii_whitespace();
             let count: usize = tokens.next().unwrap().parse().unwrap();
             let values: Vec<i128> = tokens.map(|v| v.parse().unwrap()).collect();
@@ -79,7 +79,7 @@ fn reference(id: &str, input: &str) -> String {
             assert!(values.iter().all(|v| v.abs() <= 1_000_000_000_000_000_000));
             format!("{}\n", values.iter().sum::<i128>())
         }
-        "balanced-brackets-v1" => {
+        "balanced-brackets-v2" => {
             let line = input.strip_suffix('\n').unwrap_or(input);
             assert!(line.len() <= 1000);
             assert!(line.bytes().all(|b| b"()[]{}".contains(&b)));
@@ -114,7 +114,7 @@ fn public_serialization_omits_private_cases_and_expected_outputs() {
     assert!(public.get("test_cases").is_none());
     assert!(public.get("expected_output").is_none());
     assert_eq!(public["examples"][0]["output"], "5\n");
-    assert_eq!(public["runtime"], "python-3.14.8");
+    assert_eq!(public["runtime"], "python-3.14.10");
     assert_eq!(public["limits"], document()["limits"]);
     assert!(!problem.test_cases().is_empty());
 }
@@ -261,7 +261,7 @@ fn case_and_example_byte_limits_allow_empty_inputs_and_reject_oversized_data() {
         *value.pointer_mut(pointer).unwrap() = json!("x".repeat(MAX_CASE_BYTES + 1));
         assert!(matches!(load(&value), Err(ProblemError::Invalid(_))));
     }
-    let brackets = Problem::load(directory().join("balanced-brackets-v1.json")).unwrap();
+    let brackets = Problem::load(directory().join("balanced-brackets-v2.json")).unwrap();
     assert!(
         brackets
             .test_cases()
@@ -303,7 +303,7 @@ fn catalog_checks_file_identity_and_loading_leaves_seed_data_unchanged() {
     let mut changed = document();
     changed["id"] = json!("another-v1");
     fs::write(
-        temporary.path().join("sum-two-integers-v1.json"),
+        temporary.path().join("sum-two-integers-v2.json"),
         serde_json::to_vec(&changed).unwrap(),
     )
     .unwrap();
@@ -311,4 +311,25 @@ fn catalog_checks_file_identity_and_loading_leaves_seed_data_unchanged() {
         load_problems(temporary.path()),
         Err(ProblemError::Invalid(_))
     ));
+}
+
+#[test]
+fn runtime_revision_preserves_archived_definitions_and_changes_only_id_and_runtime() {
+    for current_id in PROBLEM_IDS {
+        let archived_id = current_id.strip_suffix("-v2").unwrap().to_owned() + "-v1";
+        let archived_path = directory().join(format!("{archived_id}.json"));
+        let archived = Problem::load(&archived_path).unwrap();
+        assert_eq!(archived.public().runtime, ProblemRuntime::Python3148);
+        let mut expected: Value =
+            serde_json::from_slice(&fs::read(archived_path).unwrap()).unwrap();
+        assert_eq!(expected["id"], archived_id);
+        assert_eq!(expected["runtime"], "python-3.14.8");
+        expected["id"] = json!(current_id);
+        expected["runtime"] = json!("python-3.14.10");
+        let current: Value = serde_json::from_slice(
+            &fs::read(directory().join(format!("{current_id}.json"))).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(current, expected);
+    }
 }

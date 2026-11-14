@@ -37,11 +37,17 @@ case "$3" in
 --init)
     mkdir -p "boxes/$id/box"
     if test -f fail-init; then exit 2; fi
+    if test -f slow-init; then exec sleep 60; fi
     echo "$PWD/boxes/$id";;
 --cleanup)
     if test -f fail-cleanup; then exit 2; fi
     rm -rf "boxes/$id";;
 --run)
+    if test -f term-run; then
+        trap 'echo stopped > term-seen; exit 0' TERM
+        echo ready > run-ready
+        while :; do :; done
+    fi
     if test -f sleep-run; then exec sleep 60; fi
     if test -f fail-run; then exit 2; fi
     for arg in "$@"; do case "$arg" in --meta=*) meta=${arg#--meta=};; esac; done
@@ -51,7 +57,16 @@ case "$3" in
         printf 'exitcode:0\ntime:0.001\ntime-wall:0.002\ncg-mem:8\n' > "$meta"
     fi
     cat >/dev/null
-    echo 5;;
+    if test -f mixed-output; then
+        head -c 32768 /dev/zero
+        head -c 32768 /dev/zero >&2
+    elif test -f stderr-output; then
+        head -c 65536 /dev/zero >&2
+    elif test -f stdout-output; then
+        head -c 65536 /dev/zero
+    else
+        echo 5
+    fi;;
 esac
 "#,
         )
@@ -243,6 +258,26 @@ fn explicit_cancel_and_drop_cleanup_the_protocol_box() {
 }
 
 #[test]
+fn cancellation_allows_the_manager_to_terminate_its_sandbox_before_cleanup() {
+    let f = Fixture::new();
+    f.flag("term-run");
+    let running = f.prepare().unwrap().spawn(b"").unwrap();
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while !f.directory.path().join("run-ready").exists() {
+        assert!(Instant::now() < deadline);
+        thread::sleep(Duration::from_millis(2));
+    }
+    running.cancel().unwrap();
+    assert_eq!(
+        fs::read_to_string(f.directory.path().join("term-seen")).unwrap(),
+        "stopped\n"
+    );
+    assert!(!f.directory.path().join("boxes/3").exists());
+    fs::remove_file(f.directory.path().join("term-run")).unwrap();
+    f.prepare().unwrap().cleanup().unwrap();
+}
+
+#[test]
 fn slot_locks_reject_symlinks_and_mount_arguments_reject_option_injection() {
     let f = Fixture::new();
     let target = f.directory.path().join("target");
@@ -271,4 +306,259 @@ fn public_preparation_honors_conversion_failure_before_touching_a_box() {
     );
     assert!(f.calls().is_empty());
     assert!(!f.directory.path().join("boxes").exists());
+}
+
+#[test]
+fn shared_deadline_interrupts_setup_and_cleanup_releases_the_slot() {
+    let f = Fixture::new();
+    f.flag("slow-init");
+    let control = ExecutionControl::evaluation(Duration::from_millis(500)).unwrap();
+    let deadline = control.final_deadline().unwrap();
+    let error = f
+        .backend
+        .prepare_with_control("print(5)", &ExecutionLimits::default(), control)
+        .unwrap_err();
+    assert_eq!(
+        error.reason_code(),
+        InfrastructureReason::EvaluationDeadlineExceeded
+    );
+    assert!(Instant::now() < deadline);
+    assert!(f.calls().contains("--cleanup"));
+    assert!(!f.directory.path().join("boxes/3").exists());
+    fs::remove_file(f.directory.path().join("slow-init")).unwrap();
+    assert_eq!(f.prepare().unwrap().box_id(), 3);
+}
+
+#[test]
+fn cancellation_during_setup_still_performs_whole_box_cleanup() {
+    let f = Fixture::new();
+    f.flag("slow-init");
+    let control = ExecutionControl::evaluation(Duration::from_secs(3)).unwrap();
+    let cancellation = control.cancellation();
+    let calls = f.directory.path().join("calls");
+    let canceller = thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while !fs::read_to_string(&calls)
+            .unwrap_or_default()
+            .contains("--init")
+        {
+            assert!(Instant::now() < deadline);
+            thread::sleep(Duration::from_millis(2));
+        }
+        cancellation.cancel();
+    });
+    let error = f
+        .backend
+        .prepare_with_control("print(5)", &ExecutionLimits::default(), control)
+        .unwrap_err();
+    canceller.join().unwrap();
+    assert_eq!(error.reason_code(), InfrastructureReason::Cancelled);
+    assert!(f.calls().contains("--cleanup"));
+    assert!(!f.directory.path().join("boxes/3").exists());
+    fs::remove_file(f.directory.path().join("slow-init")).unwrap();
+    f.prepare().unwrap().cleanup().unwrap();
+}
+
+#[test]
+fn exercise_guard_blocks_launch_until_output_accounting_is_available() {
+    use crate::supervision::{OutputBudget, OutputStream, Supervisor};
+    let f = Fixture::new();
+    let supervisor = Supervisor::from_backend(f.backend.clone());
+    let session = supervisor.evaluation().unwrap();
+    let mut budget = OutputBudget::new(ExecutionLimits::default().output_bytes());
+    // This regression remains valid when the owner completes the exercise.
+    if budget.record(OutputStream::Stdout, b"").is_err() {
+        let error = session
+            .start_test("print(5)", b"", &ExecutionLimits::default())
+            .unwrap_err();
+        assert_eq!(error.reason_code(), InfrastructureReason::InternalFailure);
+        assert!(f.calls().is_empty());
+        assert!(session.is_idle());
+    } else {
+        runtime().block_on(async {
+            let result = session
+                .run_test("print(5)", b"", &ExecutionLimits::default())
+                .await
+                .unwrap();
+            assert_eq!(result.output.stdout(), b"5\n");
+        });
+    }
+}
+
+fn runtime() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+        .unwrap()
+}
+
+#[test]
+fn supervised_capture_and_errors_cleanup_before_slot_reuse() {
+    use crate::supervision::Supervisor;
+    let f = Fixture::new();
+    runtime().block_on(async {
+        let supervisor = Supervisor::from_backend(f.backend.clone());
+        let session = supervisor.evaluation().unwrap();
+        let deadline = session.deadline();
+        for _ in 0..2 {
+            let result = session
+                .run_test("print(5)", b"", &ExecutionLimits::default())
+                .await
+                .unwrap();
+            assert_eq!(result.output.stdout(), b"5\n");
+            assert!(result.output.stderr().is_empty());
+            assert!(!result.output_limit_exceeded);
+            assert_eq!(result.metadata.unwrap().exit_code, Some(0));
+            assert_eq!(session.deadline(), deadline);
+            assert!(session.is_idle());
+            assert!(!f.directory.path().join("boxes/3").exists());
+        }
+        for (flag, reason) in [
+            ("fail-init", InfrastructureReason::SandboxSetupFailed),
+            ("fail-run", InfrastructureReason::SandboxSetupFailed),
+            ("missing-meta", InfrastructureReason::MetadataMissing),
+            ("bad-meta", InfrastructureReason::MetadataInvalid),
+        ] {
+            f.flag(flag);
+            let error = session
+                .run_test("print(5)", b"", &ExecutionLimits::default())
+                .await
+                .unwrap_err();
+            assert_eq!(error.reason_code(), reason);
+            assert!(!f.directory.path().join("boxes/3").exists());
+            fs::remove_file(f.directory.path().join(flag)).unwrap();
+        }
+        session
+            .run_test("print(5)", b"", &ExecutionLimits::default())
+            .await
+            .unwrap();
+    });
+}
+
+#[test]
+fn supervised_stdout_stderr_and_mixed_excess_are_bounded() {
+    use crate::supervision::Supervisor;
+    let f = Fixture::new();
+    let limits = ExecutionLimits::try_from(crate::LimitSettings {
+        output_bytes: 40_000,
+        ..crate::LimitSettings::default()
+    })
+    .unwrap();
+    runtime().block_on(async {
+        let supervisor = Supervisor::from_backend(f.backend.clone());
+        for flag in ["stdout-output", "stderr-output", "mixed-output"] {
+            f.flag(flag);
+            let session = supervisor.evaluation().unwrap();
+            let result = session
+                .run_test("ignored by trusted double", b"", &limits)
+                .await
+                .unwrap();
+            assert!(result.output_limit_exceeded);
+            assert_eq!(result.output.retained_bytes(), 40_000);
+            assert!(result.output.observed_bytes() > 40_000);
+            assert!(result.metadata.is_none());
+            if flag == "mixed-output" {
+                assert!(!result.output.stdout().is_empty());
+                assert!(!result.output.stderr().is_empty());
+            }
+            assert!(!f.directory.path().join("boxes/3").exists());
+            fs::remove_file(f.directory.path().join(flag)).unwrap();
+        }
+        supervisor
+            .evaluation()
+            .unwrap()
+            .run_test("print(5)", b"", &limits)
+            .await
+            .unwrap();
+    });
+}
+
+#[test]
+fn explicit_and_dropped_waiter_cancellation_allow_reuse_without_blocking_tokio() {
+    use crate::supervision::Supervisor;
+    let f = Fixture::new();
+    f.flag("sleep-run");
+    runtime().block_on(async {
+        let supervisor = Supervisor::from_backend(f.backend.clone());
+        let session = supervisor.evaluation().unwrap();
+        let task = session
+            .start_test("ignored", b"", &ExecutionLimits::default())
+            .unwrap();
+        // A current-thread runtime must continue ticking while the worker blocks.
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        assert!(!session.is_idle());
+        assert!(
+            session
+                .start_test("ignored", b"", &ExecutionLimits::default())
+                .is_err()
+        );
+        task.cancel();
+        assert_eq!(
+            task.wait().await.unwrap_err().reason_code(),
+            InfrastructureReason::Cancelled
+        );
+        assert!(session.is_idle());
+        assert!(!f.directory.path().join("boxes/3").exists());
+
+        let session = supervisor.evaluation().unwrap();
+        let task = session
+            .start_test("ignored", b"", &ExecutionLimits::default())
+            .unwrap();
+        let waiter = tokio::spawn(task.wait());
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while !session.is_idle() {
+                tokio::time::sleep(Duration::from_millis(2)).await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(!f.directory.path().join("boxes/3").exists());
+        fs::remove_file(f.directory.path().join("sleep-run")).unwrap();
+        supervisor
+            .evaluation()
+            .unwrap()
+            .run_test("print(5)", b"", &ExecutionLimits::default())
+            .await
+            .unwrap();
+    });
+}
+
+#[test]
+fn exhausted_cleanup_budget_attempts_recovery_and_quarantines_the_slot() {
+    let f = Fixture::new();
+    let mut prepared = f.prepare().unwrap();
+    prepared.control = ExecutionControl::evaluation(Duration::from_nanos(1)).unwrap();
+    thread::sleep(Duration::from_millis(1));
+    assert_eq!(
+        prepared.cleanup().unwrap_err().reason_code(),
+        InfrastructureReason::CleanupFailed
+    );
+    assert!(f.calls().contains("--cleanup"));
+    assert!(!f.directory.path().join("boxes/3").exists());
+    assert!(f.directory.path().join("locks/box-3.quarantine").exists());
+    assert_eq!(f.prepare().unwrap().box_id(), 4);
+}
+
+#[test]
+fn supervisor_rejects_unsupported_output_capacity_before_allocating_a_box() {
+    use crate::supervision::{MAX_CAPTURE_BYTES, Supervisor};
+    let f = Fixture::new();
+    let supervisor = Supervisor::from_backend(f.backend.clone());
+    let session = supervisor.evaluation().unwrap();
+    let limits = ExecutionLimits::try_from(crate::LimitSettings {
+        output_bytes: MAX_CAPTURE_BYTES as u64 + 1,
+        ..crate::LimitSettings::default()
+    })
+    .unwrap();
+    assert_eq!(
+        session
+            .start_test("print(5)", b"", &limits)
+            .unwrap_err()
+            .reason_code(),
+        InfrastructureReason::InvalidConfiguration
+    );
+    assert!(f.calls().is_empty());
 }
