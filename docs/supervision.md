@@ -2,8 +2,8 @@
 
 Issue #7 adds the Tokio-facing supervisor around the issue #6 Isolate lifecycle.
 The core `OutputBudget::record` exercise is complete. Accounting and supervised
-protocol tests run in the normal suite; native supervision verification remains
-pending. The CLI still provides configuration/readiness commands; verdict
+protocol tests run in the normal suite; native supervision verification has
+also passed on the supported runtime. The CLI still provides configuration/readiness commands; verdict
 evaluation is issue #8.
 
 ## Main parts
@@ -16,7 +16,7 @@ evaluation is issue #8.
 | `supervision::execute` | Own setup, fair pipe reads, wrapper observation, metadata and explicit cleanup on a blocking worker. |
 | `OutputBudget::record` | Completed exercise: combined byte accounting and bounded retention for every read. |
 | `execution_control.rs` | Shared cancellation and work/cleanup deadline checkpoints. |
-| `sandbox/mod.rs` | Poll control processes, stage source/input, kill/reap the wrapper, clean the whole sandbox and quarantine failed cleanup. |
+| `sandbox/mod.rs` | Poll control processes, stage source/input, request manager shutdown, reap it, clean the sandbox and quarantine failed cleanup. |
 
 Create `Supervisor::initialize(config).await` once at startup. Readiness and the
 cached runtime image are service initialization, before evaluations are admitted.
@@ -46,8 +46,12 @@ retention at 1 MiB, even for an enormous standalone limit. Its observed counter
 counts only bytes actually read; excess detection can overshoot by one 8 KiB
 chunk. Unread kernel-pipe bytes are not invented as a measurement.
 
-After excess, the supervisor kills/reaps the wrapper and invokes Isolate cleanup
-for the entire sandbox/cgroup. It returns bounded raw output and explicit
+After excess, the supervisor requests SIGTERM so Isolate can terminate its
+sandbox processes, then reaps the manager and invokes Isolate cleanup. It waits
+up to 250 ms within the remaining cleanup budget before force-killing an
+unresponsive manager. Wrapper termination alone never counts as cleanup. This
+follows the pinned [Isolate shutdown handler](https://github.com/ioi/isolate/blob/v2.7/isolate.c).
+The supervisor returns bounded raw output and explicit
 `output_limit_exceeded` evidence. Metadata is absent after that forced kill;
 measurements are not fabricated. A known fatal wrapper exit remains an
 infrastructure error. Issue #8 will turn raw evidence into verdicts and compare

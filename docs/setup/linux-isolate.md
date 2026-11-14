@@ -9,7 +9,7 @@ Readiness is required before using the later runner.
 | Component | Selected version / arrangement |
 | --- | --- |
 | Rust | 1.97.1, from `rust-toolchain.toml` |
-| Python | CPython 3.14.8, `/usr/bin/python3.14` on this host |
+| Python | CPython 3.14.10, `/usr/bin/python3.14` on this host |
 | Isolate | 2.7, commit `8f185bb37f3f23e29b33b0c7727c91c13429abe3` |
 | Target OS | Native Fedora Linux 44 x86_64, systemd, cgroup v2 |
 | Kernel prerequisite | Linux >= 5.19 for cgroup peak memory reporting |
@@ -61,6 +61,20 @@ SELinux to mask an unexplained failure. Upstream recommends disabling swap for
 measurement reproducibility; Isolate 2.7 also attempts `memory.swap.max=0` for a
 memory-limited sandbox. This workstation's active zram and shared workloads remain
 limitations on reproducibility. See [the cgroup implementation](https://github.com/ioi/isolate/blob/v2.7/cg.c).
+
+## Runtime updates
+
+The supported Python pin is now 3.14.10. Readiness still rejects every other
+patch version. The smoke probe, active problem runtime and submission catalog
+use the same pin. New `-v2` problem revisions preserve the original `-v1`
+definitions for 3.14.8. Earlier verification logs describe their original runs;
+current-runtime verification is recorded in the issue #7 report.
+
+The restricted image still uses the documented Python 3.14 filesystem layout.
+Its interpreter, standard library, approved extensions and shared libraries must
+come from a consistent host installation. Recreate the backend and rerun native
+checks after a runtime update; changing a version string alone is insufficient
+verification.
 
 ## Configure and check
 

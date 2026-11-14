@@ -9,7 +9,10 @@ for the current implementation roadmap.
 This branch starts [issue #7](https://github.com/ermijeremy/TaskForge/issues/7):
 Tokio-facing execution supervision, fair stdout/stderr draining, an evaluation-wide
 deadline, cancellation and cleanup ownership. The core combined-output accounting exercise is complete and its tests run
-normally. Native verification of this new path is pending.
+normally. Native supervision verification passes on the supported runtime,
+including output limits, CPU/wall timeouts, cancellation, cleanup and slot reuse.
+The supported pin is CPython 3.14.10; active `-v2` problems preserve the original
+`-v1` definitions unchanged.
 
 Start with the [issue #7 exercise](docs/learning/issue-7.md),
 [supervision guide](docs/supervision.md), and

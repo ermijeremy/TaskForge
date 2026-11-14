@@ -1,6 +1,6 @@
 # Issue #7 — Core exercise: one stdout/stderr budget
 
-**Status: complete; native supervision verification pending.** The accounting
+**Status: complete; native supervision verification passed.** The accounting
 function was corrected at the owner’s request. Branch `issue/7-bounded-supervision`
 supplies supervision, shared deadlines, cancellation and cleanup ownership. The
 completed function is
@@ -90,7 +90,7 @@ TASKFORGE_REAL_CONFIG="$PWD/examples/judge.local.json" \
 The native test uses one dedicated configured slot. It checks stdout-only,
 stderr-only and combined excess, real CPU/wall timeout evidence, the separate
 evaluation deadline, explicit cancellation, aborted waiters and subsequent slot
-reuse. **Native supervision has not yet been verified on this branch.**
+reuse. **This native test passed with the supported runtime.**
 A skip is not evidence of isolation. See the [supervision guide](../supervision.md)
 and [verification status](../setup/issue-7-verification.md).
 

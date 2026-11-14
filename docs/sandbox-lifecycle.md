@@ -38,7 +38,7 @@ into user verdicts remains issue #8; this module does not implement `Runner` yet
 
 ## Restricted native runtime
 
-The supported initial runtime is the documented Fedora x86_64 CPython 3.14.8
+The supported initial runtime is the documented Fedora x86_64 CPython 3.14.10
 installation at `/usr/bin/python3.14`. Its image contains:
 
 - That interpreter, executable but not writable.
@@ -109,14 +109,15 @@ remains, and only then remove that specific quarantine marker. Do not clear
 quarantine markers automatically or unlink active lock files. Readiness is an
 explicit resetting check and must not run while test slots are active.
 
-`cancel()` kills/reaps the wrapper and invokes Isolate cleanup to terminate the
-cgroup; wrapper termination alone never counts as cleanup. Drop is a blocking,
+`cancel()` requests SIGTERM so Isolate can terminate its sandbox processes,
+waits up to 250 ms within the cleanup budget before force-kill fallback, reaps
+the manager and invokes Isolate cleanup to remove remaining box/cgroup resources; wrapper termination alone never counts as cleanup. Drop is a blocking,
 best-effort backstop and cannot report cleanup errors, so callers must use the
 explicit finish/cancel/cleanup methods. Unexpected process exit, SIGINT, panic,
 service failure and unkillable process behavior are not yet comprehensively
 verified. Fake tools verify these control-flow/error paths; the real test verifies
-normal execution and cleanup. Real cancellation and failure cleanup remain part
-of the issue #7/#10 supervision verification.
+normal execution and cleanup. Issue #7 now verifies real output-limit, deadline
+and cancellation cleanup; broader failure recovery remains issue #10 work.
 
 ## Supervision boundary and current limitations
 
@@ -125,11 +126,12 @@ replace this with unbounded reads or sequential draining of arbitrary source.
 The small real-test harness uses bounded captures and a ten-second guard only
 for its fixed probes. It is not a general supervisor.
 
-Issue #7 implements combined output enforcement, cancellation-safe orchestration,
-the whole-evaluation infrastructure deadline and async integration. This module's
-control commands have ten-second/16 KiB guards, but running-process waits, drop,
-staging, and pipe reading are not yet covered by one infrastructure deadline.
-Do not expose this low-level API as a general judging CLI/API before that work.
+Issue #7's [supervisor](supervision.md) implements combined output enforcement,
+cancellation-safe orchestration, one shared infrastructure deadline and async
+integration. Its guarded preparation path passes deadline/cancellation checks
+through this lifecycle. Direct low-level `prepare` calls do not create an
+evaluation-wide deadline; use the supervisor for general submission execution.
+Control commands still have their own ten-second/16 KiB guards.
 Only trusted init/cleanup commands use temporary-file captures; submission
 streams remain pipes. No ordinary-process submission fallback exists.
 
@@ -142,7 +144,7 @@ cargo fmt --all -- --check
 ```
 
 The six completed exercise regressions run normally with
-`--test sandbox_limits_exercise`. Three host-dependent checks remain explicitly
+`--test sandbox_limits_exercise`. Four host-dependent checks remain explicitly
 ignored by default. A host staging-only check can run without executing any
 submitted source:
 

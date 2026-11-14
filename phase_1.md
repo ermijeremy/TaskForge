@@ -12,8 +12,9 @@ the core [limit-conversion exercise](docs/learning/issue-6.md) is complete and a
 [real host run](docs/setup/issue-6-host-verification.md) verifies selected fixtures,
 access restrictions and slot reuse. Issue #7 adds supervision, shared deadlines
 and cancellation; its [core output-accounting exercise](docs/learning/issue-7.md)
-is complete. Native supervision verification remains pending. Verdict evaluation and the remaining
-issues are planned.
+is complete. [Native supervision verification](docs/setup/issue-7-verification.md)
+passes with the updated runtime pin and new immutable problem revisions. Verdict
+evaluation and the remaining issues are planned.
 
 **Depends on:** [Project scope](project.md).
 
