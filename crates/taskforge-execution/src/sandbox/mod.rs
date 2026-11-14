@@ -1,4 +1,4 @@
-//! Per-test Isolate lifecycle. Stream supervision is supplied by issue #7.
+//! Per-test Isolate lifecycle, shared deadline checkpoints and cgroup cleanup.
 //! Public launch requires validated Isolate limit conversion.
 mod limits;
 mod metadata;
@@ -17,6 +17,7 @@ use std::time::{Duration, Instant};
 
 use tempfile::TempDir;
 
+use crate::execution_control::ExecutionControl;
 use crate::{
     ExecutionConfig, ExecutionLimits, InfrastructureError, InfrastructureReason, check_readiness,
 };
@@ -52,10 +53,24 @@ impl IsolateBackend {
         source: &str,
         limits: &ExecutionLimits,
     ) -> Result<PreparedSandbox, InfrastructureError> {
+        self.prepare_with_control(source, limits, ExecutionControl::default())
+    }
+
+    pub(crate) fn evaluation_timeout(&self) -> Duration {
+        self.config.evaluation_timeout()
+    }
+
+    pub(crate) fn prepare_with_control(
+        &self,
+        source: &str,
+        limits: &ExecutionLimits,
+        control: ExecutionControl,
+    ) -> Result<PreparedSandbox, InfrastructureError> {
+        control.check_work()?;
         // Reject unrepresentable limits before reserving/staging a submission.
         let mapped = IsolateLimits::try_from(limits)
             .map_err(|e| error(InfrastructureReason::InvalidConfiguration, &e.to_string()))?;
-        self.prepare_mapped(source, *limits, &mapped)
+        self.prepare_mapped(source, *limits, &mapped, control)
     }
 
     fn prepare_mapped(
@@ -63,6 +78,7 @@ impl IsolateBackend {
         source: &str,
         limits: ExecutionLimits,
         mapped: &IsolateLimits,
+        control: ExecutionControl,
     ) -> Result<PreparedSandbox, InfrastructureError> {
         if source.is_empty() || source.len() > MAX_SOURCE_BYTES {
             return Err(error(
@@ -70,7 +86,9 @@ impl IsolateBackend {
                 "source must contain 1..=65536 UTF-8 bytes",
             ));
         }
+        control.check_work()?;
         let lease = SlotLease::reserve(&self.config)?;
+        control.check_work()?;
         let host = tempfile::tempdir().map_err(|_| {
             error(
                 InfrastructureReason::SandboxSetupFailed,
@@ -86,12 +104,18 @@ impl IsolateBackend {
             box_root: PathBuf::new(),
             arguments: mapped.arguments(),
             limits,
+            control,
             active: true,
         };
         let result = (|| {
             let mut init = sandbox.command();
             init.arg("--init");
-            let directory = control(&mut init, InfrastructureReason::SandboxSetupFailed)?;
+            let directory = run_control(
+                &mut init,
+                InfrastructureReason::SandboxSetupFailed,
+                &sandbox.control,
+                false,
+            )?;
             let box_root = PathBuf::from(directory.trim());
             if !box_root.is_absolute() || !box_root.is_dir() {
                 return Err(error(
@@ -140,6 +164,7 @@ impl IsolateBackend {
                     })?;
             }
             sandbox.box_root = box_root;
+            sandbox.control.check_work()?;
             Ok(())
         })();
         if let Err(original) = result {
@@ -244,6 +269,7 @@ pub struct PreparedSandbox {
     box_root: PathBuf,
     arguments: Vec<String>,
     limits: ExecutionLimits,
+    control: ExecutionControl,
     active: bool,
 }
 
@@ -298,6 +324,7 @@ impl PreparedSandbox {
     /// The API accepts no expected output, problem definition or host mount list.
     pub fn spawn(mut self, input: &[u8]) -> Result<RunningSandbox, InfrastructureError> {
         let result = (|| {
+            self.control.check_work()?;
             if input.len() > crate::problem::MAX_CASE_BYTES {
                 return Err(error(
                     InfrastructureReason::InvalidConfiguration,
@@ -317,6 +344,7 @@ impl PreparedSandbox {
                     "cannot open trusted stdin",
                 )
             })?;
+            self.control.check_work()?;
             let mut command = self.run_command()?;
             command
                 .stdin(input)
@@ -357,7 +385,27 @@ impl PreparedSandbox {
         }
         let mut command = self.command();
         command.arg("--cleanup");
-        let result = control(&mut command, InfrastructureReason::CleanupFailed).map(|_| ());
+        let result = run_control(
+            &mut command,
+            InfrastructureReason::CleanupFailed,
+            &self.control,
+            true,
+        )
+        .map(|_| ());
+        if result.is_err() && self.control.check_cleanup().is_err() {
+            // Exhausting the response deadline must never suppress an attempt
+            // to kill the cgroup. Recovery stays on the blocking worker, with a
+            // separate bounded control guard; the caller gets no successful result
+            // and the slot is quarantined even if this late recovery succeeds.
+            let mut recovery = self.command();
+            recovery.arg("--cleanup");
+            let _ = run_control(
+                &mut recovery,
+                InfrastructureReason::CleanupFailed,
+                &ExecutionControl::default(),
+                true,
+            );
+        }
         self.active = false;
         if result.is_err() {
             self.lease.quarantine();
@@ -416,13 +464,14 @@ impl RunningSandbox {
 
     pub fn finish(mut self) -> Result<SandboxExit, InfrastructureError> {
         let mut child = self.child.take().expect("active child");
+        let control = self
+            .sandbox
+            .as_ref()
+            .expect("active sandbox")
+            .control
+            .clone();
         let result = (|| {
-            let status = child.wait().map_err(|_| {
-                error(
-                    InfrastructureReason::ProcessIoFailed,
-                    "cannot wait for Isolate",
-                )
-            })?;
+            let status = wait_child(&mut child, &control)?;
             if !matches!(status.code(), Some(0 | 1)) {
                 return Err(error(
                     InfrastructureReason::SandboxSetupFailed,
@@ -457,6 +506,9 @@ impl RunningSandbox {
                 metadata,
             })
         })();
+        if result.is_err() {
+            let _ = stop_child(&mut child, &control);
+        }
         let cleanup = self.sandbox.take().expect("active sandbox").cleanup();
         combine(result, cleanup)
     }
@@ -465,27 +517,13 @@ impl RunningSandbox {
     /// Killing only the wrapper never counts as successful cleanup.
     pub fn cancel(mut self) -> Result<(), InfrastructureError> {
         let mut child = self.child.take().expect("active child");
-        let result = (|| {
-            if child
-                .try_wait()
-                .map_err(|_| error(InfrastructureReason::ProcessIoFailed, "cannot poll Isolate"))?
-                .is_none()
-            {
-                child.kill().map_err(|_| {
-                    error(
-                        InfrastructureReason::ProcessIoFailed,
-                        "cannot terminate Isolate wrapper",
-                    )
-                })?;
-            }
-            child.wait().map_err(|_| {
-                error(
-                    InfrastructureReason::ProcessIoFailed,
-                    "cannot reap Isolate wrapper",
-                )
-            })?;
-            Ok(())
-        })();
+        let control = self
+            .sandbox
+            .as_ref()
+            .expect("active sandbox")
+            .control
+            .clone();
+        let result = stop_child(&mut child, &control);
         let cleanup = self.sandbox.take().expect("active sandbox").cleanup();
         combine(result, cleanup)
     }
@@ -494,8 +532,13 @@ impl RunningSandbox {
 impl Drop for RunningSandbox {
     fn drop(&mut self) {
         if let Some(mut child) = self.child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+            let control = self
+                .sandbox
+                .as_ref()
+                .expect("active sandbox")
+                .control
+                .clone();
+            let _ = stop_child(&mut child, &control);
         }
         // PreparedSandbox's Drop attempts whole-sandbox cleanup after the wrapper.
     }
@@ -545,76 +588,155 @@ fn error(code: InfrastructureReason, diagnostic: &str) -> InfrastructureError {
 }
 
 // Only trusted init/cleanup commands use temporary-file capture. Submitted
-// stdout/stderr are pipes handed to the future bounded stream supervisor.
-fn control(
+// stdout/stderr are pipes drained by the bounded stream supervisor.
+fn run_control(
     command: &mut Command,
     code: InfrastructureReason,
+    guard: &ExecutionControl,
+    cleanup: bool,
 ) -> Result<String, InfrastructureError> {
+    let checkpoint = || {
+        if cleanup {
+            guard.check_cleanup()
+        } else {
+            guard.check_work()
+        }
+    };
+    checkpoint()?;
     let mut stdout =
-        tempfile::tempfile().map_err(|_| error(code, "cannot capture Isolate control output"))?;
-    let stderr = tempfile::tempfile()
-        .map_err(|_| error(code, "cannot capture Isolate control diagnostics"))?;
+        tempfile::tempfile().map_err(|_| error(code, "cannot capture control output"))?;
+    let stderr =
+        tempfile::tempfile().map_err(|_| error(code, "cannot capture control diagnostics"))?;
     command
         .stdin(Stdio::null())
         .stdout(
             stdout
                 .try_clone()
-                .map_err(|_| error(code, "cannot clone control file"))?,
+                .map_err(|_| error(code, "cannot clone control capture"))?,
         )
         .stderr(
             stderr
                 .try_clone()
-                .map_err(|_| error(code, "cannot clone control file"))?,
+                .map_err(|_| error(code, "cannot clone control capture"))?,
         );
-    let mut child = command.spawn().map_err(|source| {
-        error(
-            code,
-            &format!("cannot start Isolate control command: {source}"),
-        )
-    })?;
-    let deadline = Instant::now() + CONTROL_TIMEOUT;
-    let status = loop {
-        let size = stdout.metadata().and_then(|out| {
-            stderr
+    checkpoint()?;
+    let mut child = command
+        .spawn()
+        .map_err(|_| error(code, "cannot start Isolate control command"))?;
+    let operation_deadline = Instant::now() + CONTROL_TIMEOUT;
+    let result = (|| {
+        loop {
+            checkpoint()?;
+            let total = stdout
                 .metadata()
-                .map(|err| out.len().saturating_add(err.len()))
-        });
-        if size.is_err() || size.is_ok_and(|n| n > CONTROL_BYTES) || Instant::now() >= deadline {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(error(
-                code,
-                "Isolate control command exceeded its time/output guard",
-            ));
-        }
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) => thread::sleep(Duration::from_millis(10)),
-            Err(_) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(error(code, "cannot monitor Isolate control command"));
+                .and_then(|out| {
+                    stderr
+                        .metadata()
+                        .map(|err| out.len().saturating_add(err.len()))
+                })
+                .map_err(|_| error(code, "cannot inspect control output"))?;
+            if total > CONTROL_BYTES || Instant::now() >= operation_deadline {
+                return Err(error(
+                    code,
+                    "Isolate control command exceeded its time/output guard",
+                ));
+            }
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    if !status.success() {
+                        return Err(error(
+                            code,
+                            "Isolate control command failed; check native host prerequisites",
+                        ));
+                    }
+                    break;
+                }
+                Ok(None) => thread::sleep(Duration::from_millis(2)),
+                Err(_) => return Err(error(code, "cannot monitor Isolate control command")),
             }
         }
-    };
-    if !status.success() {
-        return Err(error(
-            code,
-            "Isolate control command failed; check native host prerequisites",
-        ));
+        if stdout
+            .metadata()
+            .map_err(|_| error(code, "cannot inspect control output"))?
+            .len()
+            .saturating_add(
+                stderr
+                    .metadata()
+                    .map_err(|_| error(code, "cannot inspect control output"))?
+                    .len(),
+            )
+            > CONTROL_BYTES
+        {
+            return Err(error(code, "Isolate control output exceeded its bound"));
+        }
+        stdout
+            .seek(SeekFrom::Start(0))
+            .map_err(|_| error(code, "cannot rewind control output"))?;
+        let mut bytes = Vec::new();
+        stdout
+            .take(CONTROL_BYTES + 1)
+            .read_to_end(&mut bytes)
+            .map_err(|_| error(code, "cannot read control output"))?;
+        if bytes.len() as u64 > CONTROL_BYTES {
+            return Err(error(code, "Isolate control output exceeded its bound"));
+        }
+        checkpoint()?;
+        String::from_utf8(bytes).map_err(|_| error(code, "invalid Isolate control output"))
+    })();
+    if result.is_err() {
+        let _ = stop_child(&mut child, guard);
     }
-    stdout
-        .seek(SeekFrom::Start(0))
-        .map_err(|_| error(code, "cannot rewind control output"))?;
-    let mut bytes = Vec::new();
-    stdout
-        .take(CONTROL_BYTES + 1)
-        .read_to_end(&mut bytes)
-        .map_err(|_| error(code, "cannot read control output"))?;
-    if bytes.len() as u64 > CONTROL_BYTES {
-        return Err(error(code, "Isolate control output exceeded its bound"));
+    result
+}
+
+fn wait_child(
+    child: &mut Child,
+    control: &ExecutionControl,
+) -> Result<ExitStatus, InfrastructureError> {
+    loop {
+        control.check_work()?;
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) => thread::sleep(Duration::from_millis(2)),
+            Err(_) => {
+                return Err(error(
+                    InfrastructureReason::ProcessIoFailed,
+                    "cannot wait for Isolate",
+                ));
+            }
+        }
     }
-    String::from_utf8(bytes).map_err(|_| error(code, "invalid Isolate control output"))
+}
+
+fn stop_child(child: &mut Child, control: &ExecutionControl) -> Result<(), InfrastructureError> {
+    if child
+        .try_wait()
+        .map_err(|_| error(InfrastructureReason::ProcessIoFailed, "cannot poll Isolate"))?
+        .is_some()
+    {
+        return Ok(());
+    }
+    child.kill().map_err(|_| {
+        error(
+            InfrastructureReason::ProcessIoFailed,
+            "cannot stop Isolate wrapper",
+        )
+    })?;
+    let deadline = control
+        .final_deadline()
+        .unwrap_or_else(|| Instant::now() + CONTROL_TIMEOUT);
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return Ok(()),
+            Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(2)),
+            _ => {
+                return Err(error(
+                    InfrastructureReason::CleanupFailed,
+                    "cannot reap Isolate before cleanup deadline",
+                ));
+            }
+        }
+    }
 }
 
 #[cfg(test)]

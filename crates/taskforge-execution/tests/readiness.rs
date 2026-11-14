@@ -4,17 +4,26 @@
 use std::fs::{self, File};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use std::sync::{Mutex, MutexGuard};
 
 use serde_json::{Value, json};
 use taskforge_execution::{ConfigError, ExecutionConfig, ReadinessError, check_readiness};
 use tempfile::TempDir;
 
+// Avoid concurrent fork/exec inheriting a fixture script's open writer, which
+// can transiently make execution fail with ETXTBSY on Linux.
+static PROTOCOL_LOCK: Mutex<()> = Mutex::new(());
+
 struct Fixture {
+    _guard: MutexGuard<'static, ()>,
     directory: TempDir,
 }
 
 impl Fixture {
     fn new() -> Self {
+        let guard = PROTOCOL_LOCK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         let directory = tempfile::tempdir().unwrap();
         let base = directory.path();
         for dir in ["locks", "cgroup", "box"] {
@@ -52,7 +61,10 @@ case "$3" in
 esac
 "#,
         );
-        Self { directory }
+        Self {
+            _guard: guard,
+            directory,
+        }
     }
 
     fn settings(&self) -> Value {
@@ -264,6 +276,7 @@ fn diagnostic_and_metadata_capture_reject_oversized_content() {
         check_readiness(&f.config()),
         Err(ReadinessError::ExcessOutput(_))
     ));
+    drop(f);
     let f = Fixture::new();
     fs::write(
         f.directory.path().join("metadata-override"),

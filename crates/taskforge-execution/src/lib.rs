@@ -1,15 +1,17 @@
-//! Configuration, readiness, problems, evaluation contracts, and sandbox lifecycle.
+//! Configuration, readiness, fixtures, sandbox lifecycle, and bounded supervision.
 //!
 //! Readiness executes a trusted probe. Per-test execution uses validated Isolate
-//! limits and restricted runtime staging; bounded stream supervision is later work.
+//! limits, restricted runtime staging and bounded combined-output supervision.
 
 // make the two module(files) available/expose
 pub mod config; // -> config.rs
 pub mod evaluation;
+mod execution_control;
 pub mod limits; // -> limits.rs
 pub mod problem;
 pub mod readiness;
 pub mod sandbox;
+pub mod supervision;
 
 // re-export commonly used types for easier access
 pub use config::{
