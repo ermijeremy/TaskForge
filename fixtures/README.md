@@ -8,9 +8,9 @@ sandbox outcome checks arrive in issues #6–#10.
 
 | Immutable ID | Contract | Ordered private cases |
 | --- | --- | --- |
-| `sum-two-integers-v1` | Two integers, each in [-10^18, 10^18]; print their sum | 8: zero, positive, negative, cancellation, large values, whitespace |
-| `sum-list-v1` | `n` followed by exactly `n` integers; 0 <= n <= 100, each value in [-10^18, 10^18]; print the sum | 9: empty, singleton, mixed signs, negatives, large values, 100 values, whitespace |
-| `balanced-brackets-v1` | One line of at most 1000 characters from `()[]{}`; print `YES` or `NO` | 13: empty line/file, all pairs, nesting, crossed/mismatched/unmatched brackets, depth 500 |
+| `sum-two-integers-v2` | Two integers, each in [-10^18, 10^18]; print their sum | 8: zero, positive, negative, cancellation, large values, whitespace |
+| `sum-list-v2` | `n` followed by exactly `n` integers; 0 <= n <= 100, each value in [-10^18, 10^18]; print the sum | 9: empty, singleton, mixed signs, negatives, large values, 100 values, whitespace |
+| `balanced-brackets-v2` | One line of at most 1000 characters from `()[]{}`; print `YES` or `NO` | 13: empty line/file, all pairs, nesting, crossed/mismatched/unmatched brackets, depth 500 |
 
 Integer input tokens use ASCII whitespace separators. Decimal output is exact;
 no floating-point tolerance exists. The list result may exceed a signed 64-bit
@@ -19,7 +19,7 @@ empty line or empty file is balanced. Spaces and extra bracket-input lines are
 outside that problem's input contract. Each definition contains descriptions,
 public examples, a runtime ID, all per-test limits, and the private cases.
 
-All three definitions identify `python-3.14.8` and explicitly store these limits:
+All three definitions identify `python-3.14.10` and explicitly store these limits:
 CPU 1000 ms, wall 3000 ms, memory 134217728 bytes, combined output 1048576 bytes,
 and one process. They do not store host executable paths or the infrastructure
 evaluation timeout. Those belong to host execution configuration.
@@ -59,9 +59,18 @@ the trusted judge, pipe only a selected input to the sandbox, and retain expecte
 output for comparison in the trusted process. Never copy a problem JSON file,
 this fixture directory, or the submission catalog into a sandbox.
 
+## Runtime revision
+
+The active catalog uses `-v2` definitions pinned to CPython 3.14.10. The original
+`-v1` files remain unchanged and identify CPython 3.14.8. Only the problem ID and
+runtime differ between those revisions; contracts, limits and test cases are
+preserved. `load_problems` selects the three active `-v2` definitions explicitly.
+The legacy runtime identifier remains readable for archived definitions; it does
+not bypass the execution backend's exact current-runtime readiness check.
+
 ## Stable order and future seeding
 
-`schema_version = 1` identifies the document format. The `-v1` problem IDs identify
+`schema_version = 1` identifies the document format. The revision suffixes in problem IDs identify
 immutable problem revisions. Test arrays have explicit zero-based `position`
 values and stable case IDs. Loading never sorts, rewrites, or renumbers them.
 These documents can seed Phase 2 problem/test records without changing their data.

@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "id": "balanced-brackets-v2",
+  "title": "Balanced brackets",
+  "description": "Determine whether a bracket string is balanced: every opening bracket must have a matching closing bracket of the same type in the correct nesting order. The empty string is balanced. At most 1000 brackets are provided.",
+  "input_format": "One line containing only the characters ()[]{}. The terminating newline is optional and is not part of the string. An empty line or empty file represents the empty string.",
+  "output_format": "Print YES for a balanced string, otherwise print NO. Case is significant.",
+  "runtime": "python-3.14.10",
+  "limits": {
+    "cpu_time_ms": 1000,
+    "wall_time_ms": 3000,
+    "memory_bytes": 134217728,
+    "output_bytes": 1048576,
+    "processes": 1
+  },
+  "examples": [
+    {
+      "input": "([]{})\n",
+      "output": "YES\n"
+    },
+    {
+      "input": "([)]\n",
+      "output": "NO\n"
+    },
+    {
+      "input": "\n",
+      "output": "YES\n"
+    }
+  ],
+  "test_cases": [
+    {
+      "id": "empty-line",
+      "position": 0,
+      "input": "\n",
+      "expected_output": "YES\n"
+    },
+    {
+      "id": "empty-file",
+      "position": 1,
+      "input": "",
+      "expected_output": "YES\n"
+    },
+    {
+      "id": "one-pair",
+      "position": 2,
+      "input": "()\n",
+      "expected_output": "YES\n"
+    },
+    {
+      "id": "all-pair-types",
+      "position": 3,
+      "input": "()[]{}\n",
+      "expected_output": "YES\n"
+    },
+    {
+      "id": "nested",
+      "position": 4,
+      "input": "{[()]}\n",
+      "expected_output": "YES\n"
+    },
+    {
+      "id": "mixed-nesting",
+      "position": 5,
+      "input": "([]{})[{}]\n",
+      "expected_output": "YES\n"
+    },
+    {
+      "id": "crossed",
+      "position": 6,
+      "input": "([)]\n",
+      "expected_output": "NO\n"
+    },
+    {
+      "id": "wrong-type",
+      "position": 7,
+      "input": "(]\n",
+      "expected_output": "NO\n"
+    },
+    {
+      "id": "unmatched-open",
+      "position": 8,
+      "input": "((\n",
+      "expected_output": "NO\n"
+    },
+    {
+      "id": "unmatched-close",
+      "position": 9,
+      "input": "]\n",
+      "expected_output": "NO\n"
+    },
+    {
+      "id": "extra-close",
+      "position": 10,
+      "input": "())\n",
+      "expected_output": "NO\n"
+    },
+    {
+      "id": "no-final-newline",
+      "position": 11,
+      "input": "[{}]",
+      "expected_output": "YES\n"
+    },
+    {
+      "id": "maximum-depth",
+      "position": 12,
+      "input": "(((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((())))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))\n",
+      "expected_output": "YES\n"
+    }
+  ]
+}

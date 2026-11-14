@@ -39,7 +39,7 @@ fn every_required_fixture_has_a_unique_name_source_and_known_problem() {
     let catalog: Catalog =
         serde_json::from_slice(&fs::read(directory.join("catalog.json")).unwrap()).unwrap();
     assert_eq!(catalog.schema_version, 1);
-    assert_eq!(catalog.runtime, ProblemRuntime::Python3148);
+    assert_eq!(catalog.runtime, ProblemRuntime::Python31410);
     let problems = load_problems(root.join("problems")).unwrap();
     let problem_ids: HashSet<_> = problems.iter().map(|p| p.public().id.as_str()).collect();
     let mut fixture_ids = HashSet::new();

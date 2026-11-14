@@ -31,7 +31,7 @@ impl Fixture {
         }
         fs::set_permissions(base.join("locks"), fs::Permissions::from_mode(0o700)).unwrap();
         fs::write(base.join("cgroup/cgroup.controllers"), "cpu memory pids").unwrap();
-        executable(&base.join("python"), "#!/bin/sh\necho 'Python 3.14.8'\n");
+        executable(&base.join("python"), "#!/bin/sh\necho 'Python 3.14.10'\n");
         executable(
             &base.join("isolate"),
             r#"#!/bin/sh
@@ -57,7 +57,7 @@ case "$3" in
       printf 'exitcode:0\ntime:0.001\ntime-wall:0.003\ncg-mem:8192\n' > "$meta"
     fi
     if test -f metadata-override; then cat metadata-override > "$meta"; fi
-    echo 'TASKFORGE_SMOKE_OK 3.14.8';;
+    echo 'TASKFORGE_SMOKE_OK 3.14.10';;
 esac
 "#,
         );
@@ -193,12 +193,16 @@ fn deadline_failure_still_runs_cleanup() {
 
 #[test]
 fn wrong_version_missing_delegation_and_bad_permissions_fail_before_init() {
-    for cause in ["version", "delegation", "permissions"] {
+    for cause in ["version", "python-version", "delegation", "permissions"] {
         let f = Fixture::new();
         match cause {
             "version" => executable(
                 &f.directory.path().join("isolate"),
                 "#!/bin/sh\necho 'The process isolator 1.0'\n",
+            ),
+            "python-version" => executable(
+                &f.directory.path().join("python"),
+                "#!/bin/sh\necho 'Python 3.14.8'\n",
             ),
             "delegation" => {
                 fs::write(f.directory.path().join("cgroup/cgroup.controllers"), "cpu").unwrap()

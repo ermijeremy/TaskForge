@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "id": "sum-two-integers-v2",
+  "title": "Sum two integers",
+  "description": "Read two signed decimal integers a and b and print their sum. Each integer is between -10^18 and 10^18 inclusive.",
+  "input_format": "Exactly two integers separated by ASCII whitespace, with an optional final newline.",
+  "output_format": "Print a single decimal integer: a + b.",
+  "runtime": "python-3.14.10",
+  "limits": {
+    "cpu_time_ms": 1000,
+    "wall_time_ms": 3000,
+    "memory_bytes": 134217728,
+    "output_bytes": 1048576,
+    "processes": 1
+  },
+  "examples": [
+    {
+      "input": "2 3\n",
+      "output": "5\n"
+    },
+    {
+      "input": "-7 4\n",
+      "output": "-3\n"
+    }
+  ],
+  "test_cases": [
+    {
+      "id": "zero",
+      "position": 0,
+      "input": "0 0\n",
+      "expected_output": "0\n"
+    },
+    {
+      "id": "positive",
+      "position": 1,
+      "input": "2 3\n",
+      "expected_output": "5\n"
+    },
+    {
+      "id": "both-negative",
+      "position": 2,
+      "input": "-7 -4\n",
+      "expected_output": "-11\n"
+    },
+    {
+      "id": "mixed-signs",
+      "position": 3,
+      "input": "-10 3\n",
+      "expected_output": "-7\n"
+    },
+    {
+      "id": "cancellation",
+      "position": 4,
+      "input": "1000000000000000000 -1000000000000000000\n",
+      "expected_output": "0\n"
+    },
+    {
+      "id": "large-positive",
+      "position": 5,
+      "input": "1000000000000000000 1000000000000000000\n",
+      "expected_output": "2000000000000000000\n"
+    },
+    {
+      "id": "large-negative",
+      "position": 6,
+      "input": "-1000000000000000000 -1000000000000000000\n",
+      "expected_output": "-2000000000000000000\n"
+    },
+    {
+      "id": "whitespace",
+      "position": 7,
+      "input": " \t-5\n8 \n",
+      "expected_output": "3\n"
+    }
+  ]
+}

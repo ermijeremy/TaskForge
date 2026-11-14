@@ -17,7 +17,7 @@ use thiserror::Error;
 use crate::ExecutionConfig;
 
 pub const ISOLATE_VERSION: &str = "2.7";
-pub const PYTHON_VERSION: &str = "3.14.8";
+pub const PYTHON_VERSION: &str = "3.14.10";
 const CAPTURE_LIMIT: u64 = 65_536;
 const OPERATION_TIMEOUT: Duration = Duration::from_secs(10);
 const SMOKE: &str = include_str!("smoke.py");
