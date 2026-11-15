@@ -1,4 +1,4 @@
-//! Library contract for the future runner. No submission is executed here.
+//! Validated evaluation results and the callable runner contract.
 
 use std::fmt;
 
@@ -57,6 +57,7 @@ pub enum EvaluationReason {
     OutputMismatch,
     CpuTimeLimitExceeded,
     WallTimeLimitExceeded,
+    ReportedTimeLimitExceeded,
     ConfirmedMemoryLimitKill,
     CombinedOutputLimitExceeded,
     PythonSyntaxError,
@@ -117,6 +118,9 @@ impl TryFrom<EvaluationResultFields> for EvaluationResult {
             EvaluationReason::OutputMismatch => fields.verdict == Verdict::WrongAnswer,
             EvaluationReason::CpuTimeLimitExceeded => fields.verdict == Verdict::TimeLimitExceeded,
             EvaluationReason::WallTimeLimitExceeded => fields.verdict == Verdict::TimeLimitExceeded,
+            EvaluationReason::ReportedTimeLimitExceeded => {
+                fields.verdict == Verdict::TimeLimitExceeded
+            }
             EvaluationReason::ConfirmedMemoryLimitKill => {
                 fields.verdict == Verdict::MemoryLimitExceeded
             }
@@ -206,9 +210,10 @@ impl InfrastructureError {
 
 pub type EvaluationOutcome = Result<EvaluationResult, InfrastructureError>;
 
-/// Contract only: concrete Isolate execution and evaluation arrive in #6–#8.
+/// Implemented by runner::IsolateRunner; user-code failures remain Ok results.
 /// Implementations own host configuration and the infrastructure deadline.
-/// This synchronous boundary can run on a future worker's blocking thread.
+/// This synchronous boundary is for ordinary blocking threads. Tokio callers
+/// should use IsolateRunner::evaluate_async directly.
 /// No CLI invocation, HTTP, SQL, retry policy, or host-process fallback is needed.
 pub trait Runner {
     fn evaluate(

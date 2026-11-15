@@ -5,7 +5,7 @@ mod metadata;
 mod runtime;
 
 pub use limits::{IsolateLimits, LimitConversionError};
-pub use metadata::{MAX_METADATA_BYTES, SandboxMetadata, SandboxStatus};
+pub use metadata::{MAX_METADATA_BYTES, SandboxMetadata, SandboxStatus, TimeoutKind};
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};

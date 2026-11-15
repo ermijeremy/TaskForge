@@ -54,6 +54,10 @@ fn all_allowed_verdict_reason_pairs_construct_valid_results() {
             EvaluationReason::WallTimeLimitExceeded,
         ),
         (
+            Verdict::TimeLimitExceeded,
+            EvaluationReason::ReportedTimeLimitExceeded,
+        ),
+        (
             Verdict::MemoryLimitExceeded,
             EvaluationReason::ConfirmedMemoryLimitKill,
         ),
@@ -108,6 +112,10 @@ fn every_incompatible_verdict_reason_pair_is_rejected() {
         Verdict::RuntimeError,
     ] {
         for (reason, allowed_verdict) in [
+            (
+                EvaluationReason::ReportedTimeLimitExceeded,
+                Verdict::TimeLimitExceeded,
+            ),
             (EvaluationReason::AllTestsPassed, Verdict::Accepted),
             (EvaluationReason::OutputMismatch, Verdict::WrongAnswer),
             (

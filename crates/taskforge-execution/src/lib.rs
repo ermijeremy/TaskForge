@@ -1,4 +1,4 @@
-//! Configuration, readiness, fixtures, sandbox lifecycle, and bounded supervision.
+//! Sandboxed execution, bounded supervision and ordered verdict evaluation.
 //!
 //! Readiness executes a trusted probe. Per-test execution uses validated Isolate
 //! limits, restricted runtime staging and bounded combined-output supervision.
@@ -10,6 +10,7 @@ mod execution_control;
 pub mod limits; // -> limits.rs
 pub mod problem;
 pub mod readiness;
+pub mod runner;
 pub mod sandbox;
 pub mod supervision;
 
@@ -28,3 +29,5 @@ pub use problem::{
     load_problems,
 };
 pub use readiness::{ReadinessError, ReadinessReport, check_readiness};
+
+pub use runner::IsolateRunner;

@@ -13,10 +13,18 @@ pub enum SandboxStatus {
     InternalError,
 }
 
-/// Raw sandbox evidence. Verdict classification belongs to issue #8.
+/// Clock named by Isolate's trusted timeout message. Unknown messages stay None.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TimeoutKind {
+    Cpu,
+    Wall,
+}
+
+/// Raw sandbox evidence, kept separate from final verdict classification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SandboxMetadata {
     pub status: Option<SandboxStatus>,
+    pub timeout_kind: Option<TimeoutKind>,
     pub exit_code: Option<u32>,
     pub exit_signal: Option<u32>,
     pub cpu_time: Option<Duration>,
@@ -49,6 +57,15 @@ impl SandboxMetadata {
                 _ => Err(invalid()),
             })
             .transpose()?;
+        let timeout_kind = if status == Some(SandboxStatus::Timeout) {
+            match values.get("message").copied() {
+                Some("Time limit exceeded") => Some(TimeoutKind::Cpu),
+                Some("Time limit exceeded (wall clock)") => Some(TimeoutKind::Wall),
+                _ => None,
+            }
+        } else {
+            None
+        };
         let exit_code = integer(&values, "exitcode")?;
         let exit_signal = integer(&values, "exitsig")?;
         if (status.is_none() && exit_code.is_none() && exit_signal.is_none())
@@ -69,6 +86,7 @@ impl SandboxMetadata {
             .transpose()?;
         Ok(Self {
             status,
+            timeout_kind,
             exit_code,
             exit_signal,
             cpu_time: values.get("time").map(|value| seconds(value)).transpose()?,
@@ -159,5 +177,32 @@ mod tests {
             );
         }
         assert!(SandboxMetadata::parse(&vec![b'x'; MAX_METADATA_BYTES + 1]).is_err());
+    }
+}
+
+#[cfg(test)]
+mod timeout_tests {
+    use super::*;
+    #[test]
+    fn trusted_timeout_messages_preserve_clock_without_retaining_raw_diagnostics() {
+        for (text, expected) in [
+            (
+                "status:TO\nmessage:Time limit exceeded\n",
+                Some(TimeoutKind::Cpu),
+            ),
+            (
+                "status:TO\nmessage:Time limit exceeded (wall clock)\n",
+                Some(TimeoutKind::Wall),
+            ),
+            ("status:TO\nmessage:unknown\n", None),
+            ("exitcode:0\nmessage:Time limit exceeded\n", None),
+        ] {
+            assert_eq!(
+                SandboxMetadata::parse(text.as_bytes())
+                    .unwrap()
+                    .timeout_kind,
+                expected
+            );
+        }
     }
 }

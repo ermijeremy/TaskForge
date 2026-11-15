@@ -86,6 +86,12 @@ impl EvaluationSession {
     pub fn deadline(&self) -> Instant {
         self.control.final_deadline().expect("bounded evaluation")
     }
+    pub(crate) fn check_work(&self) -> Result<(), InfrastructureError> {
+        self.control.check_work()
+    }
+    pub(crate) fn check_result(&self) -> Result<(), InfrastructureError> {
+        self.control.check_result()
+    }
     pub fn is_idle(&self) -> bool {
         !self.active.load(Ordering::Acquire)
     }

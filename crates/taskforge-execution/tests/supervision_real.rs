@@ -3,7 +3,7 @@
 use std::fs;
 use std::path::Path;
 use std::time::{Duration, Instant};
-use taskforge_execution::sandbox::SandboxStatus;
+use taskforge_execution::sandbox::{SandboxStatus, TimeoutKind};
 use taskforge_execution::supervision::{OutputBudget, OutputStream, Supervisor};
 use taskforge_execution::{
     ExecutionConfig, ExecutionLimits, ExecutionSettings, InfrastructureReason, LimitSettings,
@@ -99,6 +99,7 @@ async fn real_supervision_limits_deadline_cancellation_and_slot_reuse() {
         .unwrap();
     let cpu = cpu.metadata.unwrap();
     assert_eq!(cpu.status, Some(SandboxStatus::Timeout));
+    assert_eq!(cpu.timeout_kind, Some(TimeoutKind::Cpu));
     assert!(cpu.cpu_time.unwrap() >= Duration::from_millis(150));
     assert_clean(&config);
     let wall = supervisor
@@ -109,6 +110,7 @@ async fn real_supervision_limits_deadline_cancellation_and_slot_reuse() {
         .unwrap();
     let wall = wall.metadata.unwrap();
     assert_eq!(wall.status, Some(SandboxStatus::Timeout));
+    assert_eq!(wall.timeout_kind, Some(TimeoutKind::Wall));
     assert!(wall.wall_time.unwrap() >= Duration::from_millis(250));
     assert!(wall.cpu_time.unwrap() < Duration::from_millis(250));
     assert_clean(&config);
