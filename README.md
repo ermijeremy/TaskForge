@@ -6,30 +6,28 @@ for the current implementation roadmap.
 
 ## Current scope
 
-This branch starts [issue #7](https://github.com/ermijeremy/TaskForge/issues/7):
-Tokio-facing execution supervision, fair stdout/stderr draining, an evaluation-wide
-deadline, cancellation and cleanup ownership. The core combined-output accounting exercise is complete and its tests run
-normally. Native supervision verification passes on the supported runtime,
-including output limits, CPU/wall timeouts, cancellation, cleanup and slot reuse.
-The supported pin is CPython 3.14.10; active `-v2` problems preserve the original
-`-v1` definitions unchanged.
+This branch implements [issue #8](https://github.com/ermijeremy/TaskForge/issues/8):
+ordered test evaluation, exact byte-token comparison, resource aggregation and a
+concrete sync/async `IsolateRunner`. The core classification exercise is complete.
+All three correct fixture solutions pass their full test suites; the known wrong
+solution stops at its first failure. Native verdict and cleanup checks pass.
 
-Start with the [issue #7 exercise](docs/learning/issue-7.md),
-[supervision guide](docs/supervision.md), and
-[verification status](docs/setup/issue-7-verification.md).
+Start with the [issue #8 exercise](docs/learning/issue-8.md),
+[runner guide](docs/ordered-evaluation.md), and
+[verification status](docs/setup/issue-8-verification.md).
 
-Issues #2–#6 provide validated configuration, Linux/Isolate readiness, three
-problems with 30 cases and 16 source fixtures, validated result/error types, and
-fresh restricted sandbox lifecycles. The issue #6 core exercise is complete;
-its [recorded native run](docs/setup/issue-6-host-verification.md) covers selected
-fixtures, access restrictions and slot reuse. Ordered verdict evaluation and the
-judging CLI arrive in later issues.
+Issues #2–#7 provide validated configuration, readiness, immutable problem data,
+result/error types, restricted Isolate execution and bounded supervision. There
+are three active `-v2` problems with 30 cases and 16 source fixtures, using CPython
+3.14.10; original `-v1` definitions are retained unchanged. The
+[issue #7 native run](docs/setup/issue-7-verification.md) verifies resource limits,
+cancellation, cleanup and reuse. The judging CLI arrives in issue #9.
 
 ## Workspace
 
 ```text
 crates/
-  taskforge-execution/   configuration, fixtures, contracts, sandbox lifecycle, supervision
+  taskforge-execution/   configuration, fixtures, contracts, sandbox lifecycle, supervision, ordered evaluation
   judge-local/          command-line entry point
 fixtures/
   problems/             three versioned JSON problem definitions
@@ -45,6 +43,7 @@ docs/learning/
   issue-5.md            completed core result-validation exercise
   issue-6.md            completed core Isolate limit-conversion exercise
   issue-7.md            completed core combined-output accounting exercise
+  issue-8.md            completed core execution-classification exercise
 docs/setup/
   linux-isolate.md      pinned installation and readiness commands
 ```
@@ -71,8 +70,26 @@ cargo run -p judge-local --locked -- --help
 The normal suite covers configuration, fixtures, fake-tool readiness and the
 result contract, including the completed issue #5 exercise, and fake-tool sandbox
 lifecycle checks. Completed issue #6/#7 accounting and supervised protocol tests
-run normally. Four host-dependent checks remain ignored by default; run them
-explicitly on the supported host. Skips are not evidence of working isolation.
+run normally, including the completed issue #8 classification and ordered
+protocol tests. Five host-dependent checks remain opt-in and have been run
+explicitly on the supported host. Skips are not evidence of
+working isolation.
+
+## Issue #8 exercise
+
+The completed `classify_execution` is in
+`crates/taskforge-execution/src/runner/classification.rs`. Run its nine regression
+tests:
+
+```sh
+cargo test -p taskforge-execution --offline --locked \
+  --test classification_exercise
+```
+
+The [learning guide](docs/learning/issue-8.md) specifies infrastructure checks,
+verdict priority, timeout clocks, confirmed OOM evidence, and the protocol/native
+commands. The classification/protocol checks run normally; native checks stay
+opt-in. The CLI currently exposes configuration/readiness commands.
 
 ## Issue #7 exercise
 
@@ -183,6 +200,6 @@ an infrastructure failure. Supervised output budgets above 1 MiB are rejected.
 ## Development workflow
 
 Use one branch per implementation issue, starting from `main` once its
-prerequisites have been merged. This branch is `issue/7-bounded-supervision`.
+prerequisites have been merged. This branch is `issue/8-ordered-evaluation`.
 Leave the documented exercise for the project owner, review the changes and
 test results together, and do not start another issue until requested.
