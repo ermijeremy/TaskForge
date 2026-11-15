@@ -56,7 +56,7 @@ case "$3" in
     elif ! test -f missing-meta; then
         printf 'exitcode:0\ntime:0.001\ntime-wall:0.002\ncg-mem:8\n' > "$meta"
     fi
-    cat >/dev/null
+    if test -f trace-inputs; then cat >> seen-inputs; else cat >/dev/null; fi
     if test -f mixed-output; then
         head -c 32768 /dev/zero
         head -c 32768 /dev/zero >&2
@@ -561,4 +561,135 @@ fn supervisor_rejects_unsupported_output_capacity_before_allocating_a_box() {
         InfrastructureReason::InvalidConfiguration
     );
     assert!(f.calls().is_empty());
+}
+
+fn ordered_problem(mismatch: bool) -> crate::Problem {
+    let cases: Vec<_> = (0..5).map(|position| serde_json::json!({
+        "id": format!("case-{position}"), "position": position,
+        "input": format!("PRIVATE_INPUT_{position}\n"),
+        "expected_output": if mismatch && position == 1 { "PRIVATE_EXPECTED_OUTPUT" } else { "5\n" }
+    })).collect();
+    crate::Problem::from_json(&serde_json::to_vec(&serde_json::json!({
+        "schema_version": 1, "id": "protocol-v1", "title": "Protocol",
+        "description": "Trusted protocol double", "input_format": "Text", "output_format": "Five",
+        "runtime": "python-3.14.10", "limits": {
+            "cpu_time_ms": 1000, "wall_time_ms": 3000, "memory_bytes": 134217728,
+            "output_bytes": 1048576, "processes": 1
+        }, "examples": [{"input": "public", "output": "5\n"}], "test_cases": cases
+    })).unwrap()).unwrap()
+}
+
+#[test]
+fn ordered_runner_validates_runtime_and_classifier_readiness_before_touching_a_box() {
+    use crate::supervision::Supervisor;
+    use crate::{
+        IsolateRunner, Problem,
+        runner::{ExecutionDecision, classify_execution},
+    };
+    let f = Fixture::new();
+    let runner = IsolateRunner::from_supervisor(Supervisor::from_backend(f.backend.clone()));
+    let archived = Problem::load(
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/problems/sum-two-integers-v1.json"),
+    )
+    .unwrap();
+    runtime().block_on(async {
+        assert_eq!(
+            runner
+                .evaluate_async("print(5)", &archived, archived.limits())
+                .await
+                .unwrap_err()
+                .reason_code(),
+            InfrastructureReason::InvalidConfiguration
+        );
+        assert!(f.calls().is_empty());
+        let success = SandboxMetadata::parse(b"exitcode:0\n").unwrap();
+        assert_eq!(
+            classify_execution(false, Some(&success)).unwrap(),
+            ExecutionDecision::CompareOutput,
+        );
+        assert!(f.calls().is_empty());
+    });
+}
+
+#[test]
+fn ordered_runner_uses_stored_order_stops_on_mismatch_and_aggregates_attempted_tests() {
+    use crate::supervision::Supervisor;
+    use crate::{IsolateRunner, Verdict};
+    let f = Fixture::new();
+    f.flag("trace-inputs");
+    let runner = IsolateRunner::from_supervisor(Supervisor::from_backend(f.backend.clone()));
+    runtime().block_on(async {
+        let problem = ordered_problem(false);
+        let accepted = runner
+            .evaluate_async("print(5)", &problem, problem.limits())
+            .await
+            .unwrap();
+        let fields = accepted.fields();
+        assert_eq!(fields.verdict, Verdict::Accepted);
+        assert_eq!(fields.passed_tests, 5);
+        assert_eq!(fields.total_tests, 5);
+        assert_eq!(fields.first_failing_test, None);
+        assert_eq!(fields.resources.cpu_time_ms, Some(5));
+        assert_eq!(fields.resources.wall_time_ms, Some(10));
+        assert_eq!(fields.resources.peak_memory_bytes, Some(8192));
+        let problem = ordered_problem(true);
+        let wrong = runner
+            .evaluate_async("print(5)", &problem, problem.limits())
+            .await
+            .unwrap();
+        let fields = wrong.fields();
+        assert_eq!(fields.verdict, Verdict::WrongAnswer);
+        assert_eq!(fields.passed_tests, 1);
+        assert_eq!(fields.first_failing_test, Some(1));
+        assert_eq!(fields.resources.cpu_time_ms, Some(2));
+        assert_eq!(fields.resources.wall_time_ms, Some(4));
+        let rendered = serde_json::to_string(&wrong).unwrap();
+        assert!(!rendered.contains("PRIVATE_INPUT"));
+        assert!(!rendered.contains("PRIVATE_EXPECTED"));
+        assert_eq!(f.calls().matches("--run").count(), 7);
+        assert_eq!(f.calls().matches("--cleanup").count(), 7);
+        let observed = fs::read_to_string(f.directory.path().join("seen-inputs")).unwrap();
+        let positions: Vec<_> = (0..5)
+            .chain(0..2)
+            .map(|i| format!("PRIVATE_INPUT_{i}\n"))
+            .collect();
+        assert_eq!(observed, positions.concat());
+        assert!(!f.directory.path().join("boxes/3").exists());
+    });
+}
+
+#[test]
+fn ordered_runner_propagates_infrastructure_errors_and_the_sync_contract_works() {
+    use crate::supervision::Supervisor;
+    use crate::{IsolateRunner, Runner, Verdict};
+    let f = Fixture::new();
+    let runner = IsolateRunner::from_supervisor(Supervisor::from_backend(f.backend.clone()));
+    let problem = ordered_problem(false);
+    for (flag, reason) in [
+        ("fail-init", InfrastructureReason::SandboxSetupFailed),
+        ("fail-run", InfrastructureReason::SandboxSetupFailed),
+        ("bad-meta", InfrastructureReason::MetadataInvalid),
+        ("missing-meta", InfrastructureReason::MetadataMissing),
+    ] {
+        f.flag(flag);
+        let library: &dyn Runner = &runner;
+        assert_eq!(
+            library
+                .evaluate("print(5)", &problem, problem.limits())
+                .unwrap_err()
+                .reason_code(),
+            reason
+        );
+        assert!(!f.directory.path().join("boxes/3").exists());
+        fs::remove_file(f.directory.path().join(flag)).unwrap();
+    }
+    assert_eq!(
+        runner
+            .evaluate("print(5)", &problem, problem.limits())
+            .unwrap()
+            .fields()
+            .verdict,
+        Verdict::Accepted
+    );
 }

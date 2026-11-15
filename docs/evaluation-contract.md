@@ -2,8 +2,9 @@
 
 **Status: implemented, including the completed core result-validation exercise.**
 `EvaluationResult::try_from` validates the public construction boundary and its
-regression tests run in the normal suite. No concrete submission runner exists
-yet; issues #6–#8 implement the judging pipeline.
+regression tests run in the normal suite. Issue #8 now adds a concrete runner
+with completed classification and native verification; see the
+[runner guide](ordered-evaluation.md).
 
 ## Calling boundary
 
@@ -19,11 +20,13 @@ pub trait Runner {
 ```
 
 Source, the validated problem and per-test limits are borrowed. The implementation
-will own host configuration and the whole-evaluation infrastructure deadline.
-The contract is synchronous and callable through `&dyn Runner`. A future async
-worker must put blocking evaluation on an appropriate blocking thread. There is
-no HTTP, SQL, CLI invocation, Tokio dependency, retry policy or process fallback.
-Issues #6–#8 supply concrete execution, supervision and ordered evaluation.
+owns host configuration and the whole-evaluation infrastructure deadline.
+The contract is synchronous and callable through `&dyn Runner` from an ordinary
+blocking thread. Tokio callers use `evaluate_async` directly. The contract
+remains independent of HTTP, SQL, CLI invocation and retry policy. Issue #8 adds
+the concrete sync/async `IsolateRunner` with completed execution classification.
+Use its async entry points from Tokio; synchronous methods reject that context.
+See the [runner guide](ordered-evaluation.md).
 
 `Ok(result)` means a valid completed user-code evaluation, including a failing
 submission. `Err(error)` means trusted infrastructure could not produce such an
@@ -69,7 +72,7 @@ Neither the wrapper nor the diagnostic type offers unchecked deserialization.
 | --- | --- |
 | `accepted` | `all_tests_passed` |
 | `wrong_answer` | `output_mismatch` |
-| `time_limit_exceeded` | `cpu_time_limit_exceeded`, `wall_time_limit_exceeded` |
+| `time_limit_exceeded` | `cpu_time_limit_exceeded`, `wall_time_limit_exceeded`, `reported_time_limit_exceeded` |
 | `memory_limit_exceeded` | `confirmed_memory_limit_kill` |
 | `output_limit_exceeded` | `combined_output_limit_exceeded` |
 | `runtime_error` | `python_syntax_error`, `program_failed` |
@@ -77,7 +80,9 @@ Neither the wrapper nor the diagnostic type offers unchecked deserialization.
 Python has no Compilation Error variant. Memory-limit classification requires
 trusted sandbox evidence; an unexplained signal or Python `MemoryError` alone is
 insufficient. This table validates a proposed verdict/reason pair. Metadata
-classification, output comparison, and verdict precedence remain issue #8.
+classification, output comparison and ordered evaluation are implemented by the
+issue #8 runner. A reported timeout with an
+unknown clock uses the generic reason rather than guessing CPU or wall time.
 
 Sequential evaluation stops at the first failing test. Accepted requires
 `passed_tests == total_tests` and no failing index. Every other verdict requires
@@ -141,5 +146,6 @@ Run the completed exercise tests with:
 cargo test -p taskforge-execution --offline --locked --test evaluation_exercise
 ```
 
-Only the existing real-host readiness test remains ignored by default. The
+The five native-host checks remain ignored by default and run explicitly on
+the provisioned host. The
 [exercise guide](learning/issue-5.md) retains the contract and reasoning.

@@ -14,7 +14,10 @@ access restrictions and slot reuse. Issue #7 adds supervision, shared deadlines
 and cancellation; its [core output-accounting exercise](docs/learning/issue-7.md)
 is complete. [Native supervision verification](docs/setup/issue-7-verification.md)
 passes with the updated runtime pin and new immutable problem revisions. Verdict
-evaluation and the remaining issues are planned.
+evaluation is implemented in issue #8 with a completed
+[core classification exercise](docs/learning/issue-8.md) and a passing
+[native full-runner check](docs/setup/issue-8-verification.md). The CLI and broader
+integration issues remain planned.
 
 **Depends on:** [Project scope](project.md).
 
