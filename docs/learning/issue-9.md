@@ -65,7 +65,7 @@ report type; output privacy remains enforced by the execution library.
 - Sandbox unavailable: error JSON containing its reason and diagnostic, exit 3.
 - A missing measurement: null, not zero.
 
-Read the six tests before replacing the placeholder. A `match` on the input is
+Read the six tests to understand the preserved result/error contract. A `match` on the input is
 useful. Both branches need a common report type even though result and error are
 different Rust types; serializing each to `Vec<u8>` gives common byte storage.
 
@@ -78,7 +78,7 @@ cargo test -p judge-local --offline --locked \
   --test reporting_exercise
 ```
 
-Then run CLI argument/input checks, including the owner-dependent error report:
+Then run CLI argument/input checks, including error-report framing:
 
 ```sh
 cargo test -p judge-local --offline --locked \
