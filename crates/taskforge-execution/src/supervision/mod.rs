@@ -61,6 +61,45 @@ impl Supervisor {
             backend: Arc::new(BackendHolder(Some(backend))),
         }
     }
+    /// Consume the last supervisor after dropping sessions/clones. Await late
+    /// workers and runtime-image removal before a short-lived process exits.
+    pub async fn shutdown(self) -> Result<(), InfrastructureError> {
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(15);
+        let mut shared = self.backend;
+        loop {
+            match Arc::try_unwrap(shared) {
+                Ok(mut holder) => {
+                    let backend = holder.0.take();
+                    let cleanup = tokio::task::spawn_blocking(move || {
+                        backend.map_or(Ok(()), IsolateBackend::shutdown)
+                    });
+                    return tokio::time::timeout_at(deadline, cleanup)
+                        .await
+                        .map_err(|_| {
+                            failure(
+                                InfrastructureReason::CleanupFailed,
+                                "runtime cleanup exceeded the shutdown grace period",
+                            )
+                        })?
+                        .map_err(|_| {
+                            failure(
+                                InfrastructureReason::CleanupFailed,
+                                "runtime cleanup worker failed",
+                            )
+                        })?;
+                }
+                Err(remaining) => shared = remaining,
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(failure(
+                    InfrastructureReason::CleanupFailed,
+                    "shutdown still has live sessions, runner clones or cleanup workers",
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+    }
+
     pub fn evaluation(&self) -> Result<EvaluationSession, InfrastructureError> {
         let control = ExecutionControl::evaluation(self.backend.get().evaluation_timeout())?;
         Ok(EvaluationSession {

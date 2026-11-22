@@ -33,6 +33,13 @@ impl IsolateRunner {
     pub fn from_supervisor(supervisor: Supervisor) -> Self {
         Self { supervisor }
     }
+    /// Complete cleanup before a synchronous CLI exits. Drop all other clones.
+    pub fn shutdown(self) -> Result<(), InfrastructureError> {
+        block_on(self.shutdown_async())
+    }
+    pub async fn shutdown_async(self) -> Result<(), InfrastructureError> {
+        self.supervisor.shutdown().await
+    }
     pub async fn evaluate_async(
         &self,
         source: &str,

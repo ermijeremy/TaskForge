@@ -11,10 +11,11 @@ fn cli() -> Command {
 }
 
 #[test]
-fn help_describes_the_configuration_scaffold() {
+fn help_describes_judging_configuration_and_readiness() {
     let output = cli().arg("--help").output().unwrap();
     assert!(output.status.success());
     assert!(String::from_utf8_lossy(&output.stdout).contains("check-config"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("judge"));
 }
 
 #[test]
@@ -70,7 +71,7 @@ fn invalid_configuration_returns_a_nonzero_exit_status() {
 }
 
 #[test]
-fn judging_is_not_exposed_before_execution_is_implemented() {
+fn incomplete_judging_arguments_return_usage_error() {
     let output = cli().args(["judge", "solution.py"]).output().unwrap();
     assert_eq!(output.status.code(), Some(2));
 }
