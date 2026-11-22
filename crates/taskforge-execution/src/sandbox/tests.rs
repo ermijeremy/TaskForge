@@ -80,7 +80,7 @@ esac
         let config = settings.validate(directory.path()).unwrap();
         let backend = IsolateBackend {
             config,
-            runtime: Arc::new(RuntimeImage::empty_for_test()),
+            runtime: Arc::new(RuntimeImage::protocol_image_for_test()),
         };
         Self {
             _guard: guard,
@@ -752,4 +752,31 @@ fn explicit_shutdown_reports_shared_image_ownership_instead_of_claiming_removal(
         InfrastructureReason::CleanupFailed
     );
     assert!(image_root.exists()); // The other backend still legitimately owns it.
+}
+
+#[test]
+fn invalid_staged_runtime_files_are_setup_errors_with_cleanup_and_no_run() {
+    for fault in ["missing", "non-executable", "symlink"] {
+        let f = Fixture::new();
+        let prepared = f.prepare().unwrap();
+        let interpreter = f.backend.runtime.usr().join("bin/python3.14");
+        match fault {
+            "missing" => fs::remove_file(&interpreter).unwrap(),
+            "non-executable" => {
+                fs::set_permissions(&interpreter, fs::Permissions::from_mode(0o444)).unwrap()
+            }
+            _ => {
+                fs::remove_file(&interpreter).unwrap();
+                std::os::unix::fs::symlink(f.directory.path().join("isolate"), &interpreter)
+                    .unwrap();
+            }
+        }
+        assert_eq!(
+            prepared.spawn(b"").unwrap_err().reason_code(),
+            InfrastructureReason::SandboxSetupFailed
+        );
+        assert!(!f.calls().contains("--run"));
+        assert!(f.calls().contains("--cleanup"));
+        assert!(!f.directory.path().join("boxes/3").exists());
+    }
 }
