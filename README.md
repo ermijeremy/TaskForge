@@ -6,29 +6,29 @@ for the current implementation roadmap.
 
 ## Current scope
 
-This branch implements [issue #8](https://github.com/ermijeremy/TaskForge/issues/8):
-ordered test evaluation, exact byte-token comparison, resource aggregation and a
-concrete sync/async `IsolateRunner`. The core classification exercise is complete.
-All three correct fixture solutions pass their full test suites; the known wrong
-solution stops at its first failure. Native verdict and cleanup checks pass.
+This branch implements [issue #9](https://github.com/ermijeremy/TaskForge/issues/9):
+local judging arguments, bounded source loading, JSON/exit-code reporting,
+readiness JSON and explicit runner shutdown. JSON reporting is complete; both
+normal and native CLI checks pass. Completed evaluations exit zero, including
+failing verdicts; infrastructure errors emit error JSON and exit three.
 
-Start with the [issue #8 exercise](docs/learning/issue-8.md),
-[runner guide](docs/ordered-evaluation.md), and
-[verification status](docs/setup/issue-8-verification.md).
+Start with the [issue #9 exercise](docs/learning/issue-9.md),
+[CLI guide](docs/judge-local-cli.md), and
+[verification status](docs/setup/issue-9-verification.md).
 
-Issues #2–#7 provide validated configuration, readiness, immutable problem data,
-result/error types, restricted Isolate execution and bounded supervision. There
-are three active `-v2` problems with 30 cases and 16 source fixtures, using CPython
-3.14.10; original `-v1` definitions are retained unchanged. The
-[issue #7 native run](docs/setup/issue-7-verification.md) verifies resource limits,
-cancellation, cleanup and reuse. The judging CLI arrives in issue #9.
+Issues #2–#8 provide the validated execution library, immutable problem data,
+resource limits, bounded supervision and ordered verdict evaluation. All three
+correct solutions passed all 30 stored cases in the
+[issue #8 native run](docs/setup/issue-8-verification.md). There are three active
+`-v2` problems and 16 named Python sources using CPython 3.14.10; original `-v1`
+definitions remain unchanged. Full CLI judging verification has passed.
 
 ## Workspace
 
 ```text
 crates/
   taskforge-execution/   configuration, fixtures, contracts, sandbox lifecycle, supervision, ordered evaluation
-  judge-local/          command-line entry point
+  judge-local/          judging, configuration/readiness commands and JSON reporting
 fixtures/
   problems/             three versioned JSON problem definitions
   submissions/          named Python sources and catalog
@@ -44,6 +44,7 @@ docs/learning/
   issue-6.md            completed core Isolate limit-conversion exercise
   issue-7.md            completed core combined-output accounting exercise
   issue-8.md            completed core execution-classification exercise
+  issue-9.md            completed core JSON-reporting exercise
 docs/setup/
   linux-isolate.md      pinned installation and readiness commands
 ```
@@ -71,9 +72,24 @@ The normal suite covers configuration, fixtures, fake-tool readiness and the
 result contract, including the completed issue #5 exercise, and fake-tool sandbox
 lifecycle checks. Completed issue #6/#7 accounting and supervised protocol tests
 run normally, including the completed issue #8 classification and ordered
-protocol tests. Five host-dependent checks remain opt-in and have been run
-explicitly on the supported host. Skips are not evidence of
+protocol tests. All reporting and CLI outcome tests run normally. Seven
+native-host checks remain opt-in and have explicitly passed. Skips are not evidence of
 working isolation.
+
+## Issue #9 exercise
+
+The completed `report_outcome` is in `crates/judge-local/src/reporting.rs`.
+Run its six normal regressions:
+
+```sh
+cargo test -p judge-local --offline --locked --test reporting_exercise
+```
+
+Preserve a completed evaluation as JSON with exit zero, including Wrong Answer.
+Preserve infrastructure errors as error JSON with exit three. The
+[learning guide](docs/learning/issue-9.md) explains the two error layers, report
+bound and next tests. The [CLI guide](docs/judge-local-cli.md) lists arguments,
+fixture commands, runtime requirements and exit semantics.
 
 ## Issue #8 exercise
 
@@ -200,6 +216,6 @@ an infrastructure failure. Supervised output budgets above 1 MiB are rejected.
 ## Development workflow
 
 Use one branch per implementation issue, starting from `main` once its
-prerequisites have been merged. This branch is `issue/8-ordered-evaluation`.
+prerequisites have been merged. This branch is `issue/9-json-judging-cli`.
 Leave the documented exercise for the project owner, review the changes and
 test results together, and do not start another issue until requested.

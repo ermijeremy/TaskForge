@@ -76,6 +76,21 @@ come from a consistent host installation. Recreate the backend and rerun native
 checks after a runtime update; changing a version string alone is insufficient
 verification.
 
+The provisioning script builds pinned Isolate but assumes the supported Python
+installation already exists. It does not install an archived Python patch or
+freeze distribution repositories. Verify the interpreter and installed Python
+library packages before readiness:
+
+```sh
+/usr/bin/python3.14 --version
+rpm -q python3 python3-libs
+```
+
+The interpreter must report 3.14.10 and use consistent standard/shared libraries
+in the documented layout. A different patch fails preflight; resolve the pin
+explicitly using the runtime-update policy above before executing submissions.
+Historical verification records remain tied to their original runtime.
+
 ## Configure and check
 
 ```sh
@@ -144,8 +159,9 @@ call this synchronous API on a blocking thread.
 
 Success exits 0; configuration/readiness failure prints an actionable error on
 stderr and exits 1. Argument errors exit 2. Missing Isolate never triggers ordinary
-host-process submission execution. Human-readable output is for operators; future
-judging JSON and exit semantics belong to issue #9. The library already returns
+host-process submission execution. Human-readable output is for operators;
+judging JSON and exit semantics are documented in the
+[issue #9 CLI guide](../judge-local-cli.md); JSON reporting and native CLI verification are complete. The library already returns
 structured `ReadinessReport` / typed `ReadinessError` without parsing display text.
 
 ## Verification
@@ -165,3 +181,7 @@ invoked ignored test runs real Isolate. It requires the configuration environmen
 variable and fails on unavailable prerequisites; it never silently skips at run
 time. An ignored default test is not evidence of working isolation. Record the
 real command, output, versions and limitations in the host log.
+
+Issue #9 also supports `check-ready --json` for operator automation. See the
+[CLI guide](../judge-local-cli.md) for structured failures, the judging argument
+contract, native fixture examples and the core reporting exercise status.

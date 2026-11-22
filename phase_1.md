@@ -16,8 +16,10 @@ is complete. [Native supervision verification](docs/setup/issue-7-verification.m
 passes with the updated runtime pin and new immutable problem revisions. Verdict
 evaluation is implemented in issue #8 with a completed
 [core classification exercise](docs/learning/issue-8.md) and a passing
-[native full-runner check](docs/setup/issue-8-verification.md). The CLI and broader
-integration issues remain planned.
+[native full-runner check](docs/setup/issue-8-verification.md). Issue #9 supplies
+verified JSON CLI judging, readiness and shutdown, with its
+[core reporting exercise](docs/learning/issue-9.md) complete. Broader integration
+remains issue #10.
 
 **Depends on:** [Project scope](project.md).
 
