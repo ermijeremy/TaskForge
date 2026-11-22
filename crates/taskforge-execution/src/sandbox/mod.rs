@@ -355,6 +355,8 @@ impl PreparedSandbox {
                 )
             })?;
             self.control.check_work()?;
+            self.runtime.verify_for_launch()?;
+            self.control.check_work()?;
             let mut command = self.run_command()?;
             command
                 .stdin(input)
@@ -784,3 +786,6 @@ fn request_shutdown(child: &mut Child) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod verification;

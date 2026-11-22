@@ -67,6 +67,7 @@ fn signal_or_memory_usage_alone_never_implies_a_memory_limit_kill() {
 fn reported_failures_and_unexplained_kills_never_compare_output() {
     for text in [
         "exitcode:1\n",
+        "exitcode:127\n",
         "status:RE\nexitcode:1\n",
         "status:RE\nexitcode:0\n",
         "exitcode:0\nkilled:1\n",

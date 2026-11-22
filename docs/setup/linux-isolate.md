@@ -139,10 +139,9 @@ denial, fork denial, and a network-unreachable/permission-denied result for a
 numeric documentation address (a connection timeout alone does not pass).
 
 These broad read-only system runtime mounts are sufficient for a trusted smoke
-probe. Restricting the staged Python runtime for submissions is issue #6. CPU,
-wall and memory options are exercised here, but adversarial exhaustion tests,
-output supervision and cancellation-safe submission cleanup remain issues #7
-and #10. Preflight does not implement SIGINT/crash recovery. If interrupted,
+probe. Submitted sources use the restricted staged runtime, bounded supervision
+and verified limit/cancellation cleanup paths in the completed Phase 1 runner.
+See the [consolidated evidence](phase-1-verification.md). Preflight does not implement SIGINT/crash recovery. If interrupted,
 stop all users of the range, then explicitly clean affected IDs as the same user:
 
 ```sh
@@ -185,3 +184,6 @@ real command, output, versions and limitations in the host log.
 Issue #9 also supports `check-ready --json` for operator automation. See the
 [CLI guide](../judge-local-cli.md) for structured failures, the judging argument
 contract, native fixture examples and the core reporting exercise status.
+
+Run `TASKFORGE_REAL_CONFIG="$PWD/examples/judge.local.json" bash tools/verify-phase-1.sh`
+for the complete Phase 1 normal/native sequence and final clean-slot/process audit.

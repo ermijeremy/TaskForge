@@ -68,11 +68,76 @@ impl RuntimeImage {
     }
 
     #[cfg(test)]
-    pub(super) fn empty_for_test() -> Self {
+    pub(super) fn protocol_image_for_test() -> Self {
         let directory = tempfile::tempdir().unwrap();
         fs::create_dir(directory.path().join("usr")).unwrap();
         fs::create_dir(directory.path().join("lib64")).unwrap();
-        Self { directory }
+        let image = Self { directory };
+        // Protocol doubles never execute these marker files. Keep the staged
+        // shape faithful so launch validation has no test bypass.
+        for path in image.required_files() {
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, b"trusted protocol runtime marker").unwrap();
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&path, fs::Permissions::from_mode(0o555)).unwrap();
+            }
+        }
+        image
+    }
+
+    fn required_files(&self) -> Vec<PathBuf> {
+        let mut files = vec![
+            self.usr().join("bin/python3.14"),
+            self.usr().join("lib64/python3.14/encodings/__init__.py"),
+        ];
+        files.extend(
+            LIBRARIES
+                .iter()
+                .map(|path| self.directory.path().join(path.trim_start_matches('/'))),
+        );
+        files.extend(
+            EXTENSIONS
+                .iter()
+                .map(|name| self.usr().join("lib64/python3.14/lib-dynload").join(name)),
+        );
+        files
+    }
+
+    pub fn verify_for_launch(&self) -> Result<(), InfrastructureError> {
+        for path in self.required_files() {
+            let metadata = fs::symlink_metadata(&path).map_err(|_| runtime_unavailable())?;
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                return Err(runtime_unavailable());
+            }
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if metadata.permissions().mode() & 0o004 == 0 {
+                    return Err(runtime_unavailable());
+                }
+            }
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            for path in [
+                self.usr().join("bin/python3.14"),
+                self.lib64().join("ld-linux-x86-64.so.2"),
+            ] {
+                if fs::metadata(path)
+                    .map_err(|_| runtime_unavailable())?
+                    .permissions()
+                    .mode()
+                    & 0o001
+                    == 0
+                {
+                    return Err(runtime_unavailable());
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn close(self) -> Result<(), InfrastructureError> {
@@ -170,6 +235,13 @@ fn runtime_error(_: io::Error) -> InfrastructureError {
     super::error(
         InfrastructureReason::SandboxSetupFailed,
         "cannot stage the restricted Python runtime image",
+    )
+}
+
+fn runtime_unavailable() -> InfrastructureError {
+    super::error(
+        InfrastructureReason::SandboxSetupFailed,
+        "staged Python runtime has a missing, invalid or inaccessible required file",
     )
 }
 

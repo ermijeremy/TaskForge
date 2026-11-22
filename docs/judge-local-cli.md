@@ -156,7 +156,8 @@ Drop remains best effort; explicit shutdown is necessary for a short-lived
 process. Uninterruptible filesystem/kernel failure is outside a hard real-time
 guarantee. See the [supervision guide](supervision.md). There is no ordinary-host
 execution fallback. HTTP, databases, queues and distributed workers remain later
-phases; broader reliability integration is issue #10.
+phases. The completed [Phase 1 matrix](setup/phase-1-verification.md) records
+resource/access/error-path verification and its remaining limitations.
 
 The [learning guide](learning/issue-9.md) and
 [verification status](setup/issue-9-verification.md) distinguish what has run from

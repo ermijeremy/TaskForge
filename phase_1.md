@@ -1,25 +1,14 @@
 # Phase 1 — Sandboxed Execution and Verdicts
 
-**Status:** In progress — issue #2 workspace/configuration scaffold and its learning
-exercise are implemented. Issue #3 readiness, pinned host provisioning and a real
-Linux smoke run are verified in [the host log](docs/setup/issue-3-host-verification.md).
-Issue #4 adds the three local problems, strict fixture loading, 30 ordered cases
-and 16 Python sources; see the [fixture guide](fixtures/README.md).
-Issue #5 adds the runner contract and result/error schema; its core
-[result-validation exercise](docs/learning/issue-5.md) is complete.
-Issue #6 implements fresh sandbox lifecycles and restricted runtime staging;
-the core [limit-conversion exercise](docs/learning/issue-6.md) is complete and a
-[real host run](docs/setup/issue-6-host-verification.md) verifies selected fixtures,
-access restrictions and slot reuse. Issue #7 adds supervision, shared deadlines
-and cancellation; its [core output-accounting exercise](docs/learning/issue-7.md)
-is complete. [Native supervision verification](docs/setup/issue-7-verification.md)
-passes with the updated runtime pin and new immutable problem revisions. Verdict
-evaluation is implemented in issue #8 with a completed
-[core classification exercise](docs/learning/issue-8.md) and a passing
-[native full-runner check](docs/setup/issue-8-verification.md). Issue #9 supplies
-verified JSON CLI judging, readiness and shutdown, with its
-[core reporting exercise](docs/learning/issue-9.md) complete. Broader integration
-remains issue #10.
+**Status: complete.** Issues #2–#9 provide configuration/readiness, immutable
+problem fixtures, validated results, restricted per-test execution, bounded
+supervision, ordered verdict evaluation and JSON CLI commands. All exercises are
+complete. Issue #10 adds the native error/access audit, repeatable verification
+driver and [consolidated evidence](docs/setup/phase-1-verification.md).
+
+The actual supported-host run passed 130 normal tests and nine explicit native
+checks. The matrix and limitations are recorded in the linked verification
+report; default skips are not counted as isolation evidence.
 
 **Depends on:** [Project scope](project.md).
 
@@ -140,11 +129,14 @@ These checks verify declared configuration and common failure modes; they do not
 ## 4. Exit Criteria
 
 - [x] All three problems and required fixture categories exist (issue #4; data/inventory/reference checks).
-- [ ] CLI produces structured results without a database or API.
-- [ ] Real integration runs verify resource and access restrictions.
-- [ ] Output capture, diagnostics, and execution duration are bounded.
-- [ ] Cleanup works on normal completion, limit breaches, cancellation, and errors.
-- [ ] Host prerequisites and assumptions are documented and reproducible.
+- [x] CLI produces structured results without a database or API (native JSON/exit-code checks).
+- [x] Real integration runs verify resource and access restrictions (all named fixture categories and access probes).
+- [x] Output capture, diagnostics, and execution duration are bounded (ledger/schema tests and native limit/deadline checks).
+- [x] Cleanup works on normal completion, limit breaches, cancellation, and tested errors (native failure/reuse audit and final slot/process audit).
+- [x] Host prerequisites and assumptions are documented and reproducible (pinned setup guide and verification driver).
+
+See the [evidence matrix and reproducible commands](docs/setup/phase-1-verification.md)
+for the scope behind these checks.
 
 ## 5. Explicitly Deferred
 

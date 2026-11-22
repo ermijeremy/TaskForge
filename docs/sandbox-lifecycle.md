@@ -117,7 +117,8 @@ explicit finish/cancel/cleanup methods. Unexpected process exit, SIGINT, panic,
 service failure and unkillable process behavior are not yet comprehensively
 verified. Fake tools verify these control-flow/error paths; the real test verifies
 normal execution and cleanup. Issue #7 now verifies real output-limit, deadline
-and cancellation cleanup; broader failure recovery remains issue #10 work.
+and cancellation cleanup. Issue #10 adds actual setup/metadata error cleanup and
+named access-probe verification; see the [complete matrix](setup/phase-1-verification.md).
 
 ## Supervision boundary and current limitations
 
@@ -159,3 +160,10 @@ The real execution command is in the [learning guide](learning/issue-6.md);
 its successful run and cleanup observations are in the
 [host log](setup/issue-6-host-verification.md). Issue #3's broad trusted smoke
 probe remains separate evidence from this restricted runtime test.
+
+Before each launch the backend verifies the required staged interpreter, loader,
+libraries, approved extensions and encodings entry point. Missing, invalid or
+inaccessible required files produce a setup infrastructure error and cleanup of
+the prepared box. This catches a trusted runtime fault without misclassifying
+ordinary program exit code 127. Presence/access checks do not replace trusted
+host provisioning or binary provenance verification.

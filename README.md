@@ -6,22 +6,36 @@ for the current implementation roadmap.
 
 ## Current scope
 
-This branch implements [issue #9](https://github.com/ermijeremy/TaskForge/issues/9):
-local judging arguments, bounded source loading, JSON/exit-code reporting,
-readiness JSON and explicit runner shutdown. JSON reporting is complete; both
-normal and native CLI checks pass. Completed evaluations exit zero, including
-failing verdicts; infrastructure errors emit error JSON and exit three.
+**Phase 1 is complete.** TaskForge judges local Python submissions with fresh
+Isolate sandboxes, CPU/wall/memory/output limits, deterministic verdicts, bounded
+JSON reports and explicit cleanup. There are three active `-v2` problems, 30
+stored cases and 16 named fixture sources on the pinned CPython 3.14.10 runtime.
 
-Start with the [issue #9 exercise](docs/learning/issue-9.md),
-[CLI guide](docs/judge-local-cli.md), and
-[verification status](docs/setup/issue-9-verification.md).
+The [consolidated verification record](docs/setup/phase-1-verification.md) maps
+all Phase 1 scenarios to tests and records the actual supported-host run:
+130 normal tests and nine explicit native tests passed. It also documents the
+remaining host/kernel and crash-recovery limits. HTTP/database features remain
+future phases.
 
-Issues #2–#8 provide the validated execution library, immutable problem data,
-resource limits, bounded supervision and ordered verdict evaluation. All three
-correct solutions passed all 30 stored cases in the
-[issue #8 native run](docs/setup/issue-8-verification.md). There are three active
-`-v2` problems and 16 named Python sources using CPython 3.14.10; original `-v1`
-definitions remain unchanged. Full CLI judging verification has passed.
+Start with the [CLI guide](docs/judge-local-cli.md),
+[native setup](docs/setup/linux-isolate.md), and
+[ordered runner guide](docs/ordered-evaluation.md). The learning guides retain
+the completed exercises and their contracts.
+
+```sh
+cargo build --workspace --offline --locked
+target/debug/judge-local judge --problem sum-two-integers-v2 \
+  --source fixtures/submissions/sum_two_accepted.py \
+  --config examples/judge.local.json
+```
+
+A completed user verdict, including Wrong Answer, exits zero; infrastructure
+failure emits error JSON and exits three. Configure/check the supported native
+host first. The whole verification sequence is reproducible with:
+
+```sh
+TASKFORGE_REAL_CONFIG="$PWD/examples/judge.local.json" bash tools/verify-phase-1.sh
+```
 
 ## Workspace
 
@@ -72,7 +86,7 @@ The normal suite covers configuration, fixtures, fake-tool readiness and the
 result contract, including the completed issue #5 exercise, and fake-tool sandbox
 lifecycle checks. Completed issue #6/#7 accounting and supervised protocol tests
 run normally, including the completed issue #8 classification and ordered
-protocol tests. All reporting and CLI outcome tests run normally. Seven
+protocol tests. All reporting and CLI outcome tests run normally. Nine
 native-host checks remain opt-in and have explicitly passed. Skips are not evidence of
 working isolation.
 
@@ -216,6 +230,6 @@ an infrastructure failure. Supervised output budgets above 1 MiB are rejected.
 ## Development workflow
 
 Use one branch per implementation issue, starting from `main` once its
-prerequisites have been merged. This branch is `issue/9-json-judging-cli`.
+prerequisites have been merged. The final Phase 1 verification branch is `issue/10-phase-1-verification`.
 Leave the documented exercise for the project owner, review the changes and
 test results together, and do not start another issue until requested.
