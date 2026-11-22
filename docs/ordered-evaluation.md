@@ -2,7 +2,7 @@
 
 Issue #8 adds a concrete `IsolateRunner` around the issue #7 supervisor. Its core
 classification exercise is complete, all normal checks pass, and native full-runner
-verification passed. The CLI remains configuration/readiness only until issue #9.
+verification passed. Issue #9 exposes the verified runner through JSON CLI judging.
 
 ## Main parts
 
@@ -93,3 +93,10 @@ aggregate fields unknown. Measured zero remains zero. Arithmetic overflow become
 `MetadataInvalid`, never a wrapped number, partial sum or user-code failure.
 
 See the [verification record](setup/issue-8-verification.md) for actual checks.
+
+Short-lived callers can use `runner.shutdown()` on an ordinary thread or
+`runner.shutdown_async().await` from Tokio before exiting. These consume the last
+runner, await remaining workers and check cached-image removal; drop other
+runner/backend/session owners first. The shutdown grace is 15 seconds, separate
+from the evaluation response deadline. The issue #9 CLI uses this path and
+reports shutdown failure as infrastructure failure.

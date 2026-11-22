@@ -48,6 +48,16 @@ impl IsolateBackend {
         Ok(Self { config, runtime })
     }
 
+    pub(crate) fn shutdown(self) -> Result<(), InfrastructureError> {
+        let runtime = Arc::try_unwrap(self.runtime).map_err(|_| {
+            error(
+                InfrastructureReason::CleanupFailed,
+                "runtime image still has live backend owners",
+            )
+        })?;
+        runtime.close()
+    }
+
     pub fn prepare(
         &self,
         source: &str,

@@ -693,3 +693,63 @@ fn ordered_runner_propagates_infrastructure_errors_and_the_sync_contract_works()
         Verdict::Accepted
     );
 }
+
+#[test]
+fn explicit_shutdown_waits_for_cancelled_work_and_removes_the_runtime_image() {
+    use crate::supervision::Supervisor;
+    let Fixture {
+        _guard,
+        directory,
+        backend,
+    } = Fixture::new();
+    fs::write(directory.path().join("sleep-run"), "").unwrap();
+    let image_root = backend.runtime.usr().parent().unwrap().to_owned();
+    let supervisor = Supervisor::from_backend(backend);
+    runtime().block_on(async {
+        let session = supervisor.evaluation().unwrap();
+        let task = session
+            .start_test("ignored", b"", &ExecutionLimits::default())
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !fs::read_to_string(directory.path().join("calls"))
+            .unwrap_or_default()
+            .contains("--run")
+        {
+            assert!(Instant::now() < deadline);
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+        drop(task); // cancellation; shutdown must await the still-owning worker
+        drop(session);
+        supervisor.shutdown().await.unwrap();
+    });
+    assert!(!image_root.exists());
+    assert!(!directory.path().join("boxes/3").exists());
+    assert!(!directory.path().join("locks/box-3.quarantine").exists());
+}
+
+#[test]
+fn synchronous_runner_shutdown_removes_its_owned_runtime_image() {
+    use crate::{IsolateRunner, supervision::Supervisor};
+    let Fixture {
+        _guard,
+        directory: _,
+        backend,
+    } = Fixture::new();
+    let image_root = backend.runtime.usr().parent().unwrap().to_owned();
+    let runner = IsolateRunner::from_supervisor(Supervisor::from_backend(backend));
+    runner.shutdown().unwrap();
+    assert!(!image_root.exists());
+}
+
+#[test]
+fn explicit_shutdown_reports_shared_image_ownership_instead_of_claiming_removal() {
+    use crate::{IsolateRunner, supervision::Supervisor};
+    let f = Fixture::new();
+    let image_root = f.backend.runtime.usr().parent().unwrap().to_owned();
+    let runner = IsolateRunner::from_supervisor(Supervisor::from_backend(f.backend.clone()));
+    assert_eq!(
+        runner.shutdown().unwrap_err().reason_code(),
+        InfrastructureReason::CleanupFailed
+    );
+    assert!(image_root.exists()); // The other backend still legitimately owns it.
+}

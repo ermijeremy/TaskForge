@@ -75,6 +75,14 @@ impl RuntimeImage {
         Self { directory }
     }
 
+    pub fn close(self) -> Result<(), InfrastructureError> {
+        self.directory.close().map_err(|_| {
+            super::error(
+                InfrastructureReason::CleanupFailed,
+                "cannot remove the cached Python runtime image",
+            )
+        })
+    }
     pub fn usr(&self) -> PathBuf {
         self.directory.path().join("usr")
     }
@@ -241,6 +249,9 @@ mod tests {
             .unwrap()
             .collect();
         assert_eq!(extensions.len(), 3);
+        let root = image.usr().parent().unwrap().to_owned();
+        image.close().unwrap();
+        assert!(!root.exists());
         println!(
             "Restricted runtime image staged; interpreter, four ELF libraries, filtered .py sources and three approved extensions. No submission executed."
         );

@@ -10,9 +10,10 @@ repository.workspace = true
 clap.workspace = true
 taskforge-execution.workspace = true
 thiserror.workspace = true
+serde_json.workspace = true
+rustix.workspace = true
 
 [dev-dependencies]
-serde_json.workspace = true
 tempfile.workspace = true
 
 [lints]
